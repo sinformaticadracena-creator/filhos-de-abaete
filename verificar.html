@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Verificar carteirinha | Filhos de Abaeté</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f5f3f2;color:#282326;font-family:Arial,sans-serif}
+header{background:linear-gradient(120deg,#650910,#aa1b26);color:white;text-align:center;padding:36px 15px}
+main{max-width:530px;margin:35px auto;padding:0 16px}.card{background:white;border-radius:18px;padding:30px 24px;box-shadow:0 8px 28px #0001;text-align:center}
+h1{font-size:24px;margin:0 0 10px}h2{font-size:21px}p{line-height:1.6}.status{padding:15px;border-radius:12px;font-size:20px;font-weight:bold;margin:20px 0}
+.ok{background:#e7f5eb;color:#146c35}.bad{background:#ffebeb;color:#a01919}.neutral{background:#f2f2f2;color:#444}
+footer{text-align:center;color:#666;font-size:13px;padding:20px}small{color:#666}
+</style></head><body>
+<header><h1>ASSOCIAÇÃO DE CAPOEIRA<br>FILHOS DE ABAETÉ</h1><div>Dracena · São Paulo</div></header>
+<main><section class="card"><h2>Verificação de carteirinha</h2>
+<p>Consulta oficial da situação da carteirinha de identificação.</p>
+<div id="status" class="status neutral" role="status" aria-live="polite">Consultando…</div>
+<p id="detalhe">Aguarde a confirmação online.</p>
+<small>Esta página não apresenta dados pessoais dos associados.</small>
+</section></main>
+<footer>CNPJ: 16.887.654/0001-19 · Fundada em 12/09/2012</footer>
+<script>
+(async()=>{
+ const status=document.getElementById('status'), detalhe=document.getElementById('detalhe');
+ function mostrar(t,d,ok){status.textContent=t;status.className='status '+(ok===true?'ok':ok===false?'bad':'neutral');detalhe.textContent=d;}
+ const token=new URLSearchParams(location.search).get('token');
+ if(!token||!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(token)){
+   mostrar('QR Code inválido','O endereço não contém um código de verificação válido.',false);return;
+ }
+ if(!window.supabase){mostrar('Consulta indisponível','Não foi possível carregar o serviço. Tente novamente.',null);return;}
+ try{
+  const client=window.supabase.createClient('https://icjlqoirwaopkldykfsa.supabase.co','sb_publishable_asepxhPj_Cxd2I4Dfz-zXg_JKCMShfl',{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
+  const {data,error}=await client.rpc('verificar_carteirinha',{p_token:token});
+  if(error)throw error;
+  const mensagens={
+   valida:['CARTEIRINHA VÁLIDA','O cadastro está ativo na associação.',true],
+   inativa:['CARTEIRINHA INATIVA','Esta carteirinha não está ativa no momento.',false],
+   cancelada:['CARTEIRINHA CANCELADA','Esta carteirinha foi cancelada pela associação.',false],
+   nao_encontrada:['NÃO ENCONTRADA','Não existe uma carteirinha registrada com este código.',false]
+  };
+  const m=mensagens[data]||['Resposta desconhecida','Não foi possível confirmar a situação.',null];
+  mostrar(...m);
+ }catch(e){mostrar('Consulta indisponível','Não foi possível consultar o sistema agora. Tente novamente mais tarde.',null);}
+})();
+</script></body></html>
