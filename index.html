@@ -300,6 +300,26 @@ html { -webkit-text-size-adjust:100%; }
 #barra-conta-online #btn-sair-online{position:static!important;transform:none!important;flex:0 0 auto;min-height:44px!important;cursor:pointer;}
 @media(max-width:767px){#barra-conta-online:not(.hidden){padding:8px 14px!important;min-height:60px;justify-content:flex-end;}#barra-conta-online #usuario-online{display:none!important;}body{padding-bottom:96px;}}
 </style>
+
+<style id="abaete-v2546-cabecalho-sair">
+/* Conta no próprio cabeçalho: sem faixa branca ou sobreposição. */
+#abaete-header-mestre #barra-conta-online:not(.hidden){
+ position:relative!important; inset:auto!important; display:flex!important;
+ background:transparent!important; border:0!important; box-shadow:none!important;
+ width:100%!important; max-width:1280px!important; margin:0 auto!important;
+ padding:8px 16px 0!important; min-height:0!important; justify-content:flex-end!important;
+ z-index:2!important;
+}
+#abaete-header-mestre #barra-conta-online #btn-sair-online{
+ position:static!important; background:#fff!important; color:#991b1b!important;
+ border:1px solid #fecaca!important; border-radius:10px!important;
+ padding:9px 16px!important; min-height:44px!important;
+}
+@media(max-width:767px){
+ #abaete-header-mestre .abaete-header-container{padding-top:8px!important;}
+ #abaete-header-mestre #barra-conta-online:not(.hidden){padding:6px 14px 0!important;min-height:0!important;}
+}
+</style>
 </head>
 <body class="bg-gray-100 font-sans text-gray-800 min-h-screen flex flex-col">
 
@@ -358,13 +378,14 @@ html { -webkit-text-size-adjust:100%; }
         <p class="text-xs text-gray-500 mt-3">Não compartilhe senhas. Alunos só podem consultar o próprio cadastro.</p>
       </div>
     </div>
+    <!-- CABEÇALHO / HEADER -->
+    <header id="abaete-header-mestre" class="bg-gradient-to-r from-abaete-red via-red-700 to-abaete-darkred text-white shadow-md border-b-4 border-amber-400 no-print">
     <div id="barra-conta-online" class="hidden no-print relative z-40 bg-white border-b px-4 py-2 text-xs flex items-center justify-end gap-3">
       <span id="usuario-online" class="text-gray-600"></span>
       <button id="btn-sair-online" class="font-bold text-red-700 px-3 py-2 rounded-lg border border-red-200">Sair</button>
     </div>
 
-    <!-- CABEÇALHO / HEADER -->
-    <header id="abaete-header-mestre" class="bg-gradient-to-r from-abaete-red via-red-700 to-abaete-darkred text-white shadow-md border-b-4 border-amber-400 no-print">
+
         <div class="abaete-header-container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col items-center justify-between gap-4">
             <div class="abaete-mestre-identidade flex items-center gap-3 text-center sm:text-left">
                 <div class="abaete-mestre-logo w-28 h-28 flex items-center justify-center shrink-0">
