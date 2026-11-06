@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.39</title>
+    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.39.2</title>
     <!-- Supabase JS: autenticação e banco de dados online -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Tailwind CSS -->
@@ -183,6 +183,38 @@ html { -webkit-text-size-adjust:100%; }
   #abaete-mestre-nav button i {width:22px;text-align:center;flex-shrink:0;}
 }
 @media(min-width:768px){#abaete-mestre-nav {display:flex!important;}}
+</style>
+
+<style id="abaete-v25392-responsivo">
+/* v25.39.2: cartões na gestão de atletas somente em telas pequenas.
+   Mantém tabela original no desktop e mantém relatório/PDF intactos. */
+@media screen and (max-width:767px) {
+  html,body {max-width:100%;overflow-x:hidden;}
+  #aba-atletas, #aba-chamada {min-width:0;max-width:100%;}
+  #aba-atletas > div, #aba-chamada > div {min-width:0;max-width:100%;}
+  #tabela-atletas {display:block;width:100%;border:0;}
+  #tabela-atletas tr {display:block;margin:12px 0;padding:14px;border:1px solid #e5e7eb;border-radius:14px;background:white;box-shadow:0 2px 8px #0000000b;min-width:0;}
+  #tabela-atletas td {display:block!important;width:100%!important;max-width:100%;padding:8px 0!important;text-align:left!important;border:0!important;white-space:normal!important;overflow-wrap:anywhere;}
+  #tabela-atletas td+td {border-top:1px solid #f3f4f6!important;}
+  #tabela-atletas td::before {display:block;font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#6b7280;margin-bottom:5px;}
+  #tabela-atletas td:nth-child(1)::before {content:'Atleta';}
+  #tabela-atletas td:nth-child(2)::before {content:'Apelido';}
+  #tabela-atletas td:nth-child(3)::before {content:'Categoria / Corda';}
+  #tabela-atletas td:nth-child(4)::before {content:'Turma';}
+  #tabela-atletas td:nth-child(5)::before {content:'Contato / CPF';}
+  #tabela-atletas td:nth-child(6)::before {content:'Ações';}
+  #tabela-atletas td button {min-width:40px;min-height:40px;}
+  #aba-atletas .abaete-atletas-tabela {display:block!important;width:100%;min-width:0!important;}
+  #aba-atletas .abaete-atletas-tabela thead {display:none!important;}
+  
+  #chamada-turma-select {display:block;width:100%!important;max-width:100%!important;min-width:0!important;white-space:normal;font-size:16px!important;}
+  #chamada-turma-select option {max-width:100%;}
+  #aba-chamada .flex.flex-wrap.items-center.gap-3 {min-width:0;width:100%;}
+  #aba-chamada .flex.flex-wrap.items-center.gap-3 > div {min-width:0;max-width:100%;width:100%;}
+  #atleta-foto-file {display:block;width:100%;max-width:100%;min-width:0;font-size:12px;overflow:hidden;}
+  #atleta-foto-file::file-selector-button {max-width:100%;white-space:normal;}
+  #prev-foto-atleta {max-width:100%;}
+}
 </style>
 </head>
 <body class="bg-gray-100 font-sans text-gray-800 min-h-screen flex flex-col">
@@ -427,7 +459,7 @@ html { -webkit-text-size-adjust:100%; }
             <!-- TABELA DE ATLETAS -->
             <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
                 <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse">
+                    <table class="w-full text-left border-collapse abaete-atletas-tabela">
                         <thead>
                             <tr class="bg-gray-50 border-b border-gray-200 text-xs uppercase text-gray-500 font-bold">
                                 <th class="py-3 px-4">Atleta</th>
