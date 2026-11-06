@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.42</title>
+    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.43</title>
     <!-- Supabase JS: autenticação e banco de dados online -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Tailwind CSS -->
@@ -278,6 +278,14 @@ html { -webkit-text-size-adjust:100%; }
 @media(max-width:350px){.abaete-diario-v2541 .abaete-diario-acoes{grid-template-columns:1fr}.abaete-diario-v2541 .abaete-diario-acoes button:last-child{grid-column:auto}}
 </style>
 <style id="abaete-v2542-saida">#barra-conta-online{max-width:calc(100vw - 24px)}#btn-sair-online{min-height:42px;min-width:58px;touch-action:manipulation}@media(max-width:767px){#barra-conta-online{top:env(safe-area-inset-top, 0px)!important;right:8px!important;padding:5px 8px!important}#barra-conta-online #usuario-online{display:none}}</style>
+<style id="abaete-v2543-mobile-ajustes">
+@media(max-width:767px){
+ #abaete-professor-turmas button {overflow-wrap:anywhere}
+ #abaete-professor-turmas .bg-white.border.rounded-lg {line-height:1.65;overflow-wrap:anywhere}
+ #abaete-professor-turmas .bg-white.border.rounded-lg > button {display:inline-block!important;margin-left:0!important;margin-top:8px!important;margin-right:0!important;padding:8px 10px!important;border:1px solid #bfdbfe;border-radius:8px;background:#eff6ff}
+ #barra-conta-online {z-index:1100!important}
+}
+</style>
 </head>
 <body class="bg-gray-100 font-sans text-gray-800 min-h-screen flex flex-col">
 
@@ -3102,13 +3110,26 @@ html { -webkit-text-size-adjust:100%; }
                         card.append(titulo,conteudo);
                         feed.appendChild(card);
                     }
-                } else if (!feed.querySelector('article, .bg-white.p-6')) {
-                    status.textContent = 'Nenhuma aula online visível para este filtro.';
-                    feed.appendChild(status);
+                } else {
+                    const avisoLocal = [...feed.querySelectorAll('p')].find(p => p.textContent.includes('Nenhum registro local encontrado. Consultando'));
+                    if (avisoLocal) avisoLocal.textContent = 'Nenhum registro no diário local do Mestre.';
+                    const aviso = document.createElement('p');
+                    aviso.className = 'text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-xl p-4 mt-3 whitespace-pre-line';
+                    aviso.textContent = 'Consulta online concluída: 0 aulas retornadas para '+(turmaFiltro || 'todas as turmas')+'. Isso pode ocorrer por filtro, identificação da turma ou políticas RLS do Supabase. Não significa que as aulas foram apagadas.';
+                    feed.appendChild(aviso);
+                    if (turmaFiltro) {
+                        const turma = turmas.find(t => String(t.nome) === String(turmaFiltro));
+                        if (turma) {
+                            const diagnostico = document.createElement('p');
+                            diagnostico.className = 'text-xs text-slate-600 mt-2 break-words';
+                            diagnostico.textContent = 'Diagnóstico: turma selecionada ID '+String(turma.id)+'. Confira se corresponde ao ID da turma no painel da professora.';
+                            feed.appendChild(diagnostico);
+                        }
+                    }
                 }
             } catch (erro) {
                 if (sequencia !== abaeteDiarioConsultaSequencia) return;
-                status.textContent = 'Não foi possível consultar aulas online: '+(erro.message||String(erro))+' (verifique as permissões do Supabase).';
+                status.textContent = 'Erro ao consultar aulas online: '+(erro.message||String(erro))+'. Código: '+(erro.code||'não informado')+'. Verifique a consulta e as permissões RLS antes de modificar o banco.';
             }
         }
 
