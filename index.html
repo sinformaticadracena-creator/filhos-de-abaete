@@ -337,6 +337,28 @@ html { -webkit-text-size-adjust:100%; }
 }
 @media screen and (max-width:380px){#aba-chamada #lista-chamada-atletas>div>label{margin-left:auto;}}
 </style>
+<style id="abaete-v2549-layout-chamada">
+/* V25.49: ajuste exclusivamente visual, sem alterar dados, eventos ou Supabase. */
+.abaete-chamada-atleta{min-width:0;gap:12px}
+.abaete-chamada-atleta>div:first-child{min-width:0;flex:1 1 auto}
+.abaete-chamada-atleta>div:first-child>div:last-child{min-width:0;max-width:100%}
+.abaete-chamada-atleta .btn-presenca{display:inline-flex;align-items:center;justify-content:center;min-height:42px;white-space:nowrap}
+.abaete-chamada-atleta [class*="graduacao"],.abaete-chamada-atleta [class*="grad-badge"]{max-width:100%;overflow-wrap:break-word}
+@media(max-width:767px){
+ .abaete-chamada-cabecalho{display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:12px!important}
+ .abaete-chamada-cabecalho>h3,.abaete-chamada-cabecalho>h4{width:100%;font-size:18px;line-height:1.4}
+ .abaete-chamada-cabecalho>div{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));width:100%;gap:8px!important}
+ .abaete-chamada-cabecalho button{width:100%;min-width:0;min-height:44px;white-space:normal;line-height:1.3;padding:9px 6px!important}
+ .abaete-chamada-atleta{display:grid!important;grid-template-columns:minmax(0,1fr) auto;align-items:center!important;padding:12px!important;gap:8px!important}
+ .abaete-chamada-atleta>div:first-child{min-width:0!important;gap:8px!important;align-items:center}
+ .abaete-chamada-atleta>div:first-child>div:last-child{min-width:0!important}
+ .abaete-chamada-atleta .btn-presenca,.abaete-chamada-atleta button{min-width:95px!important;max-width:115px;min-height:44px;white-space:normal;text-align:center;padding:8px!important}
+ .abaete-chamada-atleta [class*="badge"],.abaete-chamada-atleta [class*="grad"]{max-width:100%;font-size:11px!important;line-height:1.25!important;white-space:normal!important;overflow-wrap:normal;word-break:normal}
+ #aba-chamada .mt-6.border-t.pt-4{justify-content:stretch!important}
+ #aba-chamada .mt-6.border-t.pt-4>button{width:100%;justify-content:center;min-height:50px;text-align:center}
+ .abaete-chamada-professor .abaete-chamada-atleta button{border-radius:12px}
+}
+</style>
 </head>
 <body class="bg-gray-100 font-sans text-gray-800 min-h-screen flex flex-col">
 
@@ -695,7 +717,7 @@ html { -webkit-text-size-adjust:100%; }
 
             <!-- LISTA DE CHAMADA -->
             <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-                <div class="flex items-center justify-between mb-4 border-b pb-3">
+                <div class="abaete-chamada-cabecalho flex items-center justify-between mb-4 border-b pb-3">
                     <h3 class="font-bold text-gray-800 text-lg">Lista de Atletas da Turma</h3>
                     <div class="flex items-center gap-2">
                         <button onclick="marcarTodos(true)" class="px-3 py-1.5 bg-green-100 text-green-700 text-xs font-bold rounded-lg hover:bg-green-200">
@@ -1766,7 +1788,7 @@ html { -webkit-text-size-adjust:100%; }
               dataAula.addEventListener('change',()=>{dataPresenca.value=dataAula.value;});
               dataChamada.append(turmaChamada,rotuloData,dataPresenca);cabChamada.append(tituloChamada,dataChamada);
               const quadroChamada=document.createElement('div');quadroChamada.className='bg-white border rounded-2xl shadow-sm p-5 space-y-4';
-              const linhaTitulo=document.createElement('div');linhaTitulo.className='flex flex-wrap items-center justify-between gap-3 border-b pb-3';
+              const linhaTitulo=document.createElement('div');linhaTitulo.className='abaete-chamada-cabecalho flex flex-wrap items-center justify-between gap-3 border-b pb-3';
               const subtitulo=document.createElement('h4');subtitulo.className='font-bold text-lg text-gray-800';subtitulo.textContent='Lista de Atletas da Turma';
               const acoes=document.createElement('div');acoes.className='flex flex-wrap gap-2';
               const todosPresentes=document.createElement('button');todosPresentes.type='button';todosPresentes.className='px-3 py-2 rounded-lg bg-green-100 text-green-700 font-bold text-xs';todosPresentes.textContent='Marcar Todos Presentes';
@@ -1830,7 +1852,7 @@ html { -webkit-text-size-adjust:100%; }
             const linhas=[];
             for(const aluno of alunos){
               const linha=document.createElement('div');
-              linha.className='flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 border border-gray-200 bg-gray-50 rounded-xl px-3 py-4';
+              linha.className='abaete-chamada-atleta flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 border border-gray-200 bg-gray-50 rounded-xl px-3 py-4';
               const identificacao=document.createElement('div');identificacao.className='flex items-center gap-3 min-w-0';
               const avatar=document.createElement('span');avatar.className='w-9 h-9 rounded-full bg-red-100 text-red-600 text-xs font-bold flex items-center justify-center shrink-0';
               avatar.textContent=String(aluno.nome_completo||'?').trim().split(/\s+/).slice(0,2).map(x=>x[0]||'').join('').toUpperCase();
@@ -2994,7 +3016,7 @@ html { -webkit-text-size-adjust:100%; }
                 }
 
                 const item = document.createElement('div');
-                item.className = "flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-200 hover:bg-gray-100 transition";
+                item.className = "abaete-chamada-atleta flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-200 hover:bg-gray-100 transition";
                 item.innerHTML = `
                     <div class="flex items-center gap-3">
                         <div class="w-8 h-8 rounded-full bg-abaete-red/10 text-abaete-red font-bold text-xs flex items-center justify-center">
