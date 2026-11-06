@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.48</title>
+    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.50</title>
     <!-- Supabase JS: autenticação e banco de dados online -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Tailwind CSS -->
@@ -3060,32 +3060,49 @@ html { -webkit-text-size-adjust:100%; }
             });
         }
 
-        function salvarChamada() {
+        // v25.50 — confirmação real da gravação online da chamada do Mestre.
+        let abaeteChamadaSalvando = false;
+        async function salvarChamada() {
+            if (abaeteChamadaSalvando) return;
             const turma = document.getElementById('chamada-turma-select').value;
             const data = document.getElementById('chamada-data').value;
             const checks = document.querySelectorAll('.atleta-presenca-check');
-
-            if (!turma || !data) {
-                alert("Selecione a turma e a data.");
+            if (!turma || !data) { alert('Selecione a turma e a data.'); return; }
+            if (!checks.length) { alert('Não há atletas na lista para registrar.'); return; }
+            if (!supabaseClient || !usuarioOnline || !sincronizacaoPronta || papelOnline !== 'administrador') {
+                alert('Aguarde a conexão com o Supabase e entre como Mestre antes de salvar a chamada.');
                 return;
             }
-
             const chamadaObj = {};
-            checks.forEach(c => {
-                const id = c.getAttribute('data-atleta-id');
-                chamadaObj[id] = c.checked;
-            });
-
+            checks.forEach(c => { chamadaObj[c.getAttribute('data-atleta-id')] = c.checked; });
+            const anterior = presencas.map(p => ({...p, chamada: p.chamada ? {...p.chamada} : p.chamada}));
             const idx = presencas.findIndex(p => p.turma === turma && p.data === data);
-            if (idx !== -1) {
-                presencas[idx].chamada = chamadaObj;
-            } else {
-                presencas.push({ turma, data, chamada: chamadaObj });
+            if (idx !== -1) presencas[idx].chamada = chamadaObj;
+            else presencas.push({turma, data, chamada: chamadaObj});
+            const botao = document.querySelector('#aba-chamada button[onclick="salvarChamada()"]');
+            abaeteChamadaSalvando = true;
+            if (botao) { botao.disabled = true; botao.dataset.textoAnterior = botao.innerHTML; botao.textContent = 'Salvando no Supabase...'; }
+            try {
+                // Cancela gravação agendada anterior para evitar competição com esta chamada.
+                clearTimeout(timerSincronizacao);
+                const {data:linhas, error} = await supabaseClient.from('app_state')
+                    .update({data:dadosDoSistema(), updated_by:usuarioOnline.id, updated_at:new Date().toISOString()})
+                    .eq('id','main').select('id');
+                if (error) throw error;
+                if (!linhas || !linhas.length) throw new Error('O Supabase não confirmou a atualização do registro principal.');
+                // Cache local somente depois da confirmação remota; não agenda outro envio.
+                const completo = dadosDoSistema();
+                for (const [chave, valor] of Object.entries(completo)) gravarCacheLocal(chave, valor);
+                atualizarDashboard();
+                alert('Chamada salva e confirmada no Supabase!');
+            } catch (erro) {
+                presencas = anterior;
+                console.error('Erro ao salvar chamada do Mestre:', erro);
+                alert('Não foi possível confirmar a chamada no Supabase. Verifique a conexão e tente novamente. Detalhes: ' + (erro?.message || String(erro)));
+            } finally {
+                abaeteChamadaSalvando = false;
+                if (botao) { botao.disabled = false; botao.innerHTML = botao.dataset.textoAnterior || 'Salvar Chamada do Dia'; delete botao.dataset.textoAnterior; }
             }
-
-            salvarStorage();
-            alert("Chamada salva com sucesso!");
-            atualizarDashboard();
         }
 
         // DIÁRIO DE AULAS
