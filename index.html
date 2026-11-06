@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.45</title>
+    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.47</title>
     <!-- Supabase JS: autenticação e banco de dados online -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Tailwind CSS -->
@@ -1819,7 +1819,7 @@ html { -webkit-text-size-adjust:100%; }
               avatar.textContent=String(aluno.nome_completo||'?').trim().split(/\s+/).slice(0,2).map(x=>x[0]||'').join('').toUpperCase();
               const detalhes=document.createElement('div');detalhes.className='min-w-0';
               const nome=document.createElement('div');nome.className='font-bold text-sm text-gray-800 break-words';nome.textContent=aluno.nome_completo;
-              const subtitulo=document.createElement('div');subtitulo.className='text-xs text-gray-500';subtitulo.textContent=graduacoes.get(String(aluno.id))||'Sem graduação';
+              const subtitulo=document.createElement('div');subtitulo.className='text-xs text-gray-500';subtitulo.innerHTML=getGraduacaoBadge(graduacoes.get(String(aluno.id))||'Sem graduação');
               detalhes.append(nome,subtitulo);identificacao.append(avatar,detalhes);
               const controle=document.createElement('div');controle.className='flex items-center gap-2 shrink-0';
               const sel=document.createElement('select');sel.className='sr-only';sel.dataset.presencaAluno='1';
@@ -2985,7 +2985,7 @@ html { -webkit-text-size-adjust:100%; }
                         </div>
                         <div>
                             <p class="font-bold text-gray-800 text-sm">${a.nome} ${a.apelido ? '<span class="text-abaete-red text-xs">(' + a.apelido + ')</span>' : ''}</p>
-                            <p class="text-[11px] text-gray-400">${a.graduacao}</p>
+                            <div class="mt-1 text-[11px]">${getGraduacaoBadge(a.graduacao || "Sem graduação")}</div>
                         </div>
                     </div>
                     <label class="inline-flex items-center cursor-pointer select-none">
