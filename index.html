@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.41</title>
+    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.42</title>
     <!-- Supabase JS: autenticação e banco de dados online -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Tailwind CSS -->
@@ -277,6 +277,7 @@ html { -webkit-text-size-adjust:100%; }
 @media(max-width:640px){.abaete-diario-v2541 .abaete-diario-acoes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.abaete-diario-v2541 .abaete-diario-acoes button{width:100%;min-width:0;min-height:50px;padding:10px 8px}.abaete-diario-v2541 .abaete-diario-acoes button:last-child{grid-column:1/-1}}
 @media(max-width:350px){.abaete-diario-v2541 .abaete-diario-acoes{grid-template-columns:1fr}.abaete-diario-v2541 .abaete-diario-acoes button:last-child{grid-column:auto}}
 </style>
+<style id="abaete-v2542-saida">#barra-conta-online{max-width:calc(100vw - 24px)}#btn-sair-online{min-height:42px;min-width:58px;touch-action:manipulation}@media(max-width:767px){#barra-conta-online{top:env(safe-area-inset-top, 0px)!important;right:8px!important;padding:5px 8px!important}#barra-conta-online #usuario-online{display:none}}</style>
 </head>
 <body class="bg-gray-100 font-sans text-gray-800 min-h-screen flex flex-col">
 
@@ -335,9 +336,9 @@ html { -webkit-text-size-adjust:100%; }
         <p class="text-xs text-gray-500 mt-3">Não compartilhe senhas. Alunos só podem consultar o próprio cadastro.</p>
       </div>
     </div>
-    <div id="barra-conta-online" class="hidden no-print fixed bottom-3 right-3 z-40 bg-white shadow-lg border rounded-xl px-3 py-2 text-xs flex items-center gap-3">
+    <div id="barra-conta-online" class="hidden no-print fixed top-3 right-3 z-50 bg-white shadow-lg border rounded-xl px-3 py-2 text-xs flex items-center gap-3">
       <span id="usuario-online" class="text-gray-600"></span>
-      <button id="btn-sair-online" class="font-bold text-red-700">Sair</button>
+      <button id="btn-sair-online" class="font-bold text-red-700 px-3 py-2 rounded-lg border border-red-200">Sair</button>
     </div>
 
     <!-- CABEÇALHO / HEADER -->
@@ -3003,7 +3004,7 @@ html { -webkit-text-size-adjust:100%; }
         }
 
         // DIÁRIO DE AULAS
-        function renderDiario() {
+        function renderDiarioLocal() {
             const feed = document.getElementById('feed-diario');
             const turmaFiltro = document.getElementById('filtro-diario-turma').value;
             const periodoFiltro = document.getElementById('filtro-diario-periodo').value;
@@ -3023,7 +3024,7 @@ html { -webkit-text-size-adjust:100%; }
             });
 
             if (filtrados.length === 0) {
-                feed.innerHTML = `<p class="text-center py-8 text-gray-400 font-medium bg-white rounded-2xl border border-gray-200">Nenhum registro de aula encontrado no período.</p>`;
+                feed.innerHTML = `<p class="text-center py-8 text-gray-400 font-medium bg-white rounded-2xl border border-gray-200">Nenhum registro local encontrado. Consultando aulas dos professores...</p>`;
                 return;
             }
 
@@ -3043,6 +3044,72 @@ html { -webkit-text-size-adjust:100%; }
                 `;
                 feed.appendChild(card);
             });
+        }
+
+
+        // v25.42: consulta adicional das aulas dos professores, respeitando RLS do Supabase.
+        // O histórico local do Mestre permanece independente e intacto.
+        let abaeteDiarioConsultaSequencia = 0;
+        async function renderDiario() {
+            const sequencia = ++abaeteDiarioConsultaSequencia;
+            renderDiarioLocal();
+            const feed = document.getElementById('feed-diario');
+            if (!feed || !usuarioOnline || !supabaseClient) return;
+            const turmaFiltro = document.getElementById('filtro-diario-turma').value;
+            const periodoFiltro = document.getElementById('filtro-diario-periodo').value;
+            const status = document.createElement('p');
+            status.className = 'text-sm text-slate-600 py-3';
+            status.textContent = 'Consultando aulas dos professores no Supabase...';
+            feed.appendChild(status);
+            try {
+                let consulta = supabaseClient.from('abaete_aulas_professores')
+                    .select('id,turma_id,data_aula,presenca_professor,conteudo')
+                    .order('data_aula',{ascending:false}).limit(500);
+                if (periodoFiltro === 'mes') {
+                    const hoje = new Date();
+                    const inicio = hoje.getFullYear()+'-'+String(hoje.getMonth()+1).padStart(2,'0')+'-01';
+                    consulta = consulta.gte('data_aula',inicio);
+                }
+                // As turmas do painel Mestre usam nome; as aulas online usam ID.
+                if (turmaFiltro) {
+                    const turma = turmas.find(t => String(t.nome) === String(turmaFiltro));
+                    if (!turma) { status.textContent = 'Turma não encontrada para consultar as aulas online.'; return; }
+                    consulta = consulta.eq('turma_id',String(turma.id));
+                }
+                const {data,error} = await consulta;
+                if (sequencia !== abaeteDiarioConsultaSequencia) return;
+                if (error) throw error;
+                status.remove();
+                const aulas = data || [];
+                if (aulas.length) {
+                    // Remove somente o aviso de lista local vazia.
+                    const avisoLocal = feed.querySelector('p.text-center');
+                    if (avisoLocal && avisoLocal.textContent.includes('Nenhum registro local')) avisoLocal.remove();
+                    const cabecalho = document.createElement('h3');
+                    cabecalho.className = 'font-bold text-lg text-red-900 mt-4';
+                    cabecalho.textContent = 'Aulas registradas pelos professores ('+aulas.length+')';
+                    feed.appendChild(cabecalho);
+                    for (const aula of aulas) {
+                        const turma = turmas.find(t => String(t.id) === String(aula.turma_id));
+                        const card = document.createElement('article');
+                        card.className = 'bg-white p-5 rounded-2xl shadow-sm border border-gray-200 border-l-4 border-l-red-800 space-y-2';
+                        const titulo = document.createElement('strong');
+                        titulo.className = 'block text-red-900';
+                        titulo.textContent = (turma ? turma.nome : 'Turma ID '+aula.turma_id)+' — '+(aula.data_aula||'')+' — '+(aula.presenca_professor||'');
+                        const conteudo = document.createElement('p');
+                        conteudo.className = 'text-sm text-gray-700 whitespace-pre-line';
+                        conteudo.textContent = aula.conteudo || 'Sem conteúdo informado';
+                        card.append(titulo,conteudo);
+                        feed.appendChild(card);
+                    }
+                } else if (!feed.querySelector('article, .bg-white.p-6')) {
+                    status.textContent = 'Nenhuma aula online visível para este filtro.';
+                    feed.appendChild(status);
+                }
+            } catch (erro) {
+                if (sequencia !== abaeteDiarioConsultaSequencia) return;
+                status.textContent = 'Não foi possível consultar aulas online: '+(erro.message||String(erro))+' (verifique as permissões do Supabase).';
+            }
         }
 
         function openModalDiario() {
