@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.47</title>
+    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.48</title>
     <!-- Supabase JS: autenticação e banco de dados online -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Tailwind CSS -->
@@ -319,6 +319,23 @@ html { -webkit-text-size-adjust:100%; }
  #abaete-header-mestre .abaete-header-container{padding-top:8px!important;}
  #abaete-header-mestre #barra-conta-online:not(.hidden){padding:6px 14px 0!important;min-height:0!important;}
 }
+</style>
+<style id="abaete-v2548-chamada-graducao">
+/* v25.48: cartões de chamada no celular, sem alterar operações ou dados. */
+.corda-badge{max-width:100%;white-space:normal;overflow-wrap:anywhere;line-height:1.35;padding:6px 10px;vertical-align:middle;isolation:isolate;}
+.corda-badge .abaete-corda-texto{display:inline-block;background:rgba(255,255,255,.92);color:#172033;border-radius:7px;padding:3px 7px;text-shadow:none;box-decoration-break:clone;-webkit-box-decoration-break:clone;}
+@media screen and (max-width:767px){
+ #aba-chamada{padding-bottom:calc(100px + env(safe-area-inset-bottom,0px));}
+ #aba-chamada #lista-chamada-atletas>div{display:flex;align-items:center;gap:12px;flex-wrap:wrap;min-width:0;padding:14px!important;}
+ #aba-chamada #lista-chamada-atletas>div>div:first-child{flex:1 1 170px;min-width:0;align-items:flex-start;}
+ #aba-chamada #lista-chamada-atletas>div>div:first-child>div:last-child{min-width:0;overflow-wrap:anywhere;}
+ #aba-chamada #lista-chamada-atletas .corda-badge{font-size:12px;}
+ #aba-chamada #lista-chamada-atletas label{flex:0 0 auto;max-width:100%;}
+ #aba-chamada #lista-chamada-atletas .btn-presenca{display:inline-flex;align-items:center;justify-content:center;min-height:46px;min-width:108px;padding:10px 13px!important;white-space:nowrap;}
+ #aba-chamada #lista-chamada-atletas+div{padding-bottom:24px;}
+ #aba-chamada #lista-chamada-atletas+div button{width:100%;max-width:100%;min-height:54px;justify-content:center;text-align:center;white-space:normal;}
+}
+@media screen and (max-width:380px){#aba-chamada #lista-chamada-atletas>div>label{margin-left:auto;}}
 </style>
 </head>
 <body class="bg-gray-100 font-sans text-gray-800 min-h-screen flex flex-col">
@@ -2418,7 +2435,7 @@ html { -webkit-text-size-adjust:100%; }
             }
             // O texto é escapado para evitar HTML vindo de campos livres.
             const seguro = original.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
-            return `<span class="corda-badge" style="background: ${fundo}; color: #111">${seguro}</span>`;
+            return `<span class="corda-badge" style="background: ${fundo}; color: #111"><span class="abaete-corda-texto">${seguro}</span></span>`;
         }
 
         // ATLETAS - RENDERIZAÇÃO E FILTROS
