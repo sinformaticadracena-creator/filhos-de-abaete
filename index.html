@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.43</title>
+    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.44</title>
     <!-- Supabase JS: autenticação e banco de dados online -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Tailwind CSS -->
@@ -73,7 +73,15 @@
 .v23-verso{background:#fff;color:#262626;border:2px solid #9e1821;padding:13px}.v23-verso-titulo{font-size:14px;font-weight:900;color:#991b1b;border-bottom:2px solid #d6b46a;padding-bottom:7px}.v23-verso-titulo small{font-size:8px;display:block;color:#555;letter-spacing:1px}.v23-verso-meio{display:flex;justify-content:space-between;gap:8px;margin-top:10px}.v23-verso-meio>div:first-child{flex:1;min-width:0;overflow-wrap:anywhere}.v23-verso-meio b{font-size:8px;color:#666;display:block}.v23-verso-meio span{font-size:10px;font-weight:700;display:block;margin-bottom:5px}#v23-qr{width:92px;height:92px;flex-shrink:0}#v23-qr img,#v23-qr canvas{width:92px!important;height:92px!important}.v23-verso-rodape{position:absolute;bottom:8px;left:13px;right:13px;font-size:7px;text-align:center;color:#555;border-top:1px solid #ddd;padding-top:4px}
 .v23-verso-rodape strong{font-size:7.2px;color:#991b1b}.v23-verso-rodape{line-height:1.45;padding-top:5px}
 @media print{@page{size:A4 portrait;margin:12mm}body.v23-imprimindo *{visibility:hidden!important}body.v23-imprimindo #v23-cartoes,body.v23-imprimindo #v23-cartoes *{visibility:visible!important}body.v23-imprimindo #v23-cartoes{position:fixed;left:12mm;top:12mm;display:block!important;z-index:999999}body.v23-imprimindo .v23-card{display:block!important;margin:0 0 12mm 0;box-shadow:none;border-radius:0;break-inside:avoid;print-color-adjust:exact;-webkit-print-color-adjust:exact}}
-    </style>
+    
+/* v25.44 — ajustes de apresentação, sem alterar autenticação ou relatórios */
+@media screen and (max-width: 767px) {
+  body { padding-bottom: 96px; }
+  #barra-conta-online { position: relative !important; top: auto !important; right: auto !important; max-width: 100%; box-shadow: none; }
+  #btn-sair-online { min-height: 44px; }
+  #filtro-diario-turma, #filtro-diario-periodo { max-width: 100%; }
+}
+</style>
 
 <script>
 /* v25.18 — Máscaras e validação brasileira de CPF e telefone */
@@ -344,7 +352,7 @@ html { -webkit-text-size-adjust:100%; }
         <p class="text-xs text-gray-500 mt-3">Não compartilhe senhas. Alunos só podem consultar o próprio cadastro.</p>
       </div>
     </div>
-    <div id="barra-conta-online" class="hidden no-print fixed top-3 right-3 z-50 bg-white shadow-lg border rounded-xl px-3 py-2 text-xs flex items-center gap-3">
+    <div id="barra-conta-online" class="hidden no-print relative z-40 bg-white border-b px-4 py-2 text-xs flex items-center justify-end gap-3">
       <span id="usuario-online" class="text-gray-600"></span>
       <button id="btn-sair-online" class="font-bold text-red-700 px-3 py-2 rounded-lg border border-red-200">Sair</button>
     </div>
@@ -2030,10 +2038,13 @@ html { -webkit-text-size-adjust:100%; }
             resultado.append(resumo);
             for(const aluno of data||[]){
               const linha=document.createElement('div');
-              linha.className='bg-white border rounded-lg px-3 py-2';
-              linha.textContent=aluno.nome_completo||'Nome não informado';
+              linha.className='bg-white border rounded-lg px-3 py-3';
+              const nomeAluno=document.createElement('div');
+              nomeAluno.className='font-medium break-words mb-2';
+              nomeAluno.textContent=aluno.nome_completo||'Nome não informado';
+              linha.appendChild(nomeAluno);
               const editar=document.createElement('button');
-              editar.type='button';editar.className='ml-3 text-blue-700 font-semibold underline';
+              editar.type='button';editar.className='inline-block text-blue-700 font-semibold underline py-2';
               editar.textContent='Editar / Transferir';
               const formularioEdicao=document.createElement('form');
               formularioEdicao.className='hidden mt-3 space-y-2 border-t pt-3';
@@ -3071,7 +3082,7 @@ html { -webkit-text-size-adjust:100%; }
             feed.appendChild(status);
             try {
                 let consulta = supabaseClient.from('abaete_aulas_professores')
-                    .select('id,turma_id,data_aula,presenca_professor,conteudo')
+                    .select('id,turma_id,professor_id,data_aula,presenca_professor,conteudo')
                     .order('data_aula',{ascending:false}).limit(500);
                 if (periodoFiltro === 'mes') {
                     const hoje = new Date();
@@ -3089,6 +3100,21 @@ html { -webkit-text-size-adjust:100%; }
                 if (error) throw error;
                 status.remove();
                 const aulas = data || [];
+                // Identificação adicional: falha nesta consulta não impede a exibição das aulas.
+                const nomesProfessores = new Map();
+                if (aulas.length) {
+                    try {
+                        const ids = [...new Set(aulas.map(a => a.professor_id).filter(Boolean))];
+                        if (ids.length) {
+                            const {data: perfisProf, error: erroPerfis} = await supabaseClient.from('perfis')
+                                .select('id,nome').in('id', ids);
+                            if (!erroPerfis) for (const perfil of (perfisProf || [])) {
+                                if (perfil.nome) nomesProfessores.set(String(perfil.id), perfil.nome);
+                            }
+                        }
+                    } catch (_) { /* mantém as aulas visíveis */ }
+                }
+                if (sequencia !== abaeteDiarioConsultaSequencia) return;
                 if (aulas.length) {
                     // Remove somente o aviso de lista local vazia.
                     const avisoLocal = feed.querySelector('p.text-center');
@@ -3103,11 +3129,18 @@ html { -webkit-text-size-adjust:100%; }
                         card.className = 'bg-white p-5 rounded-2xl shadow-sm border border-gray-200 border-l-4 border-l-red-800 space-y-2';
                         const titulo = document.createElement('strong');
                         titulo.className = 'block text-red-900';
-                        titulo.textContent = (turma ? turma.nome : 'Turma ID '+aula.turma_id)+' — '+(aula.data_aula||'')+' — '+(aula.presenca_professor||'');
+                        const dataFormatada = /^\d{4}-\d{2}-\d{2}$/.test(aula.data_aula || '')
+                            ? aula.data_aula.slice(8,10)+'/'+aula.data_aula.slice(5,7)+'/'+aula.data_aula.slice(0,4)
+                            : (aula.data_aula || 'Data não informada');
+                        titulo.textContent = (turma ? turma.nome : 'Turma ID '+aula.turma_id)+' — '+dataFormatada;
+                        const meta = document.createElement('p');
+                        meta.className = 'text-sm text-slate-600';
+                        const nomeProfessor = nomesProfessores.get(String(aula.professor_id));
+                        meta.textContent = 'Professor(a): '+(nomeProfessor || 'Não identificado')+' • Presença: '+(aula.presenca_professor||'Não informada');
                         const conteudo = document.createElement('p');
                         conteudo.className = 'text-sm text-gray-700 whitespace-pre-line';
                         conteudo.textContent = aula.conteudo || 'Sem conteúdo informado';
-                        card.append(titulo,conteudo);
+                        card.append(titulo,meta,conteudo);
                         feed.appendChild(card);
                     }
                 } else {
