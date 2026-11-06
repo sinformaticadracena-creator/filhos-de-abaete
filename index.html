@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.40</title>
+    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.40.1</title>
     <!-- Supabase JS: autenticação e banco de dados online -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Tailwind CSS -->
@@ -239,8 +239,7 @@ html { -webkit-text-size-adjust:100%; }
 }
 /* A cópia usada para exportar PDF não recebe a transformação mobile. */
 #pdf-container.abaete-v2540-export {width:794px!important;max-width:none!important;min-width:794px!important;padding:32px!important;box-shadow:none!important;}
-#pdf-container.abaete-v2540-export table:has(#pdf-tabela-atletas),
-#pdf-container.abaete-v2540-export #pdf-tabela-atletas {display:table!important;width:100%!important;}
+#pdf-container.abaete-v2540-export table:has(#pdf-tabela-atletas) {display:table!important;width:100%!important;}
 #pdf-container.abaete-v2540-export #pdf-tabela-atletas {display:table-row-group!important;}
 #pdf-container.abaete-v2540-export table:has(#pdf-tabela-atletas) thead {display:table-header-group!important;}
 #pdf-container.abaete-v2540-export #pdf-tabela-atletas tr {display:table-row!important;border:0!important;padding:0!important;margin:0!important;box-shadow:none!important;break-inside:avoid;page-break-inside:avoid;}
@@ -3190,7 +3189,7 @@ html { -webkit-text-size-adjust:100%; }
                 tr.innerHTML = `
                     <td class="p-2 font-bold">${a.nome} ${a.apelido ? '<br><span class="text-abaete-red font-normal">(' + a.apelido + ')</span>' : ''}</td>
                     <td class="p-2">${a.cpf || '-'}<br><span class="text-gray-500">${a.nascimento ? a.nascimento.split('-').reverse().join('/') : '-'}</span></td>
-                    <td class="p-2">${a.graduacao}</td>
+                    <td class="p-2">${getGraduacaoBadge(a.graduacao || "Sem graduação")}</td>
                     <td class="p-2">${a.turma}</td>
                     <td class="p-2">${respInfo}</td>
                 `;
@@ -3220,30 +3219,31 @@ html { -webkit-text-size-adjust:100%; }
         async function gerarPDF() {
             const original = document.getElementById('pdf-container');
             if (!original) return;
-            // A exportação usa uma cópia em largura A4, sem modificar a prévia no iPhone.
+            if (typeof html2pdf === 'undefined') {
+                alert('A biblioteca de PDF não carregou. Atualize a página e tente novamente.');
+                return;
+            }
+            // O html2canvas no Safari pode produzir PDF branco quando o elemento
+            // fica fora da tela ou com z-index negativo. Renderizar visivelmente.
+            const suporte = document.createElement('div');
+            suporte.style.cssText = 'position:fixed;inset:0;z-index:999999;background:#e5e7eb;overflow:auto;-webkit-overflow-scrolling:touch;';
             const copia = original.cloneNode(true);
             copia.classList.add('abaete-v2540-export');
-            copia.style.position = 'absolute';
-            copia.style.left = '0';
-            copia.style.top = '0';
-            copia.style.zIndex = '-1';
-            const suporte = document.createElement('div');
-            suporte.style.cssText = 'position:absolute;left:-10000px;top:0;width:794px;overflow:visible;';
+            copia.style.cssText = 'position:relative!important;left:auto!important;top:auto!important;z-index:1!important;display:block!important;visibility:visible!important;opacity:1!important;margin:0!important;background:#fff!important;';
             suporte.appendChild(copia);
             document.body.appendChild(suporte);
-            const opt = {
-                margin: 10,
-                filename: `Relatorio_Capoeira_Abaete_${new Date().toISOString().substring(0,10)}.pdf`,
-                image: { type: 'jpeg', quality: 0.98 },
-                html2canvas: { scale: 2, windowWidth: 1100, scrollX: 0, scrollY: 0 },
-                pagebreak: { mode: ['css', 'legacy'], avoid: ['tr'] },
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-            };
             try {
-                await html2pdf().set(opt).from(copia).save();
+                await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+                await html2pdf().set({
+                    margin: 10,
+                    filename: `Relatorio_Capoeira_Abaete_${new Date().toISOString().substring(0,10)}.pdf`,
+                    image: {type:'jpeg',quality:0.98},
+                    html2canvas: {scale: 1.5, scrollX: 0, scrollY: 0, backgroundColor:'#ffffff', useCORS:true},
+                    jsPDF: {unit:'mm',format:'a4',orientation:'portrait'}
+                }).from(copia).save();
             } catch (erro) {
                 console.error('Erro ao exportar relatório:', erro);
-                alert('Não foi possível gerar o PDF. Tente novamente.');
+                alert('Não foi possível gerar o PDF. Atualize a página e tente novamente.');
             } finally {
                 suporte.remove();
             }
