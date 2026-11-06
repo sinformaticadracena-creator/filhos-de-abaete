@@ -1885,23 +1885,7 @@ html { -webkit-text-size-adjust:100%; }
             '<p><b>Turma:</b> '+esc(turma)+'<br><b>Período:</b> '+esc(inicio)+' a '+esc(fim)+
             '<br><b>Aulas registradas:</b> '+esc(totalAulas)+'</p><table><thead><tr>'+
             cabecalhos.map(v=>'<th>'+esc(v)+'</th>').join('')+'</tr></thead><tbody>'+trs+'</tbody></table>'+
-            '<p class="nota">Frequência = presentes ÷ marcações (presentes + ausentes + justificados). Aulas sem chamada não entram no cálculo. O relatório contém somente alunos atualmente aprovados na turma.</p>
-<script id="abaete-v2539-menu-script">
-(function(){
-  function iniciarMenuMestre(){
-    const toggle=document.getElementById('abaete-mestre-menu-toggle');
-    const nav=document.getElementById('abaete-mestre-nav');
-    if(!toggle||!nav)return;
-    function fechar(){nav.classList.remove('abaete-menu-aberto');toggle.setAttribute('aria-expanded','false');toggle.setAttribute('aria-label','Abrir menu do Mestre');}
-    toggle.addEventListener('click',function(){const abrir=!nav.classList.contains('abaete-menu-aberto');nav.classList.toggle('abaete-menu-aberto',abrir);toggle.setAttribute('aria-expanded',String(abrir));toggle.setAttribute('aria-label',abrir?'Fechar menu do Mestre':'Abrir menu do Mestre');});
-    nav.addEventListener('click',function(e){if(e.target.closest('button') && window.matchMedia('(max-width:767px)').matches)fechar();});
-    document.addEventListener('keydown',function(e){if(e.key==='Escape')fechar();});
-    window.addEventListener('resize',function(){if(window.innerWidth>=768)fechar();});
-  }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',iniciarMenuMestre);else iniciarMenuMestre();
-})();
-</script>
-</body></html>';
+            '<p class="nota">Frequência = presentes ÷ marcações (presentes + ausentes + justificados). Aulas sem chamada não entram no cálculo. O relatório contém somente alunos atualmente aprovados na turma.</p></body></html>';
           janela.document.open();janela.document.write(html);janela.document.close();
           janela.addEventListener('load',()=>janela.print(),{once:true});
         }
@@ -3505,6 +3489,21 @@ function v23Imprimir(){
     document.addEventListener('keydown',e=>{if(e.key==='Escape' && modal.style.display!=='none')fechar();});
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',preparar); else preparar();
+})();
+</script>
+<script id="abaete-v2539-menu-script">
+(function(){
+  function iniciarMenuMestre(){
+    const toggle=document.getElementById('abaete-mestre-menu-toggle');
+    const nav=document.getElementById('abaete-mestre-nav');
+    if(!toggle||!nav)return;
+    function fechar(){nav.classList.remove('abaete-menu-aberto');toggle.setAttribute('aria-expanded','false');toggle.setAttribute('aria-label','Abrir menu do Mestre');}
+    toggle.addEventListener('click',function(){const abrir=!nav.classList.contains('abaete-menu-aberto');nav.classList.toggle('abaete-menu-aberto',abrir);toggle.setAttribute('aria-expanded',String(abrir));toggle.setAttribute('aria-label',abrir?'Fechar menu do Mestre':'Abrir menu do Mestre');});
+    nav.addEventListener('click',function(e){if(e.target.closest('button') && window.matchMedia('(max-width:767px)').matches)fechar();});
+    document.addEventListener('keydown',function(e){if(e.key==='Escape')fechar();});
+    window.addEventListener('resize',function(){if(window.innerWidth>=768)fechar();});
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',iniciarMenuMestre);else iniciarMenuMestre();
 })();
 </script>
 </body>
