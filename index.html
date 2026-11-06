@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.39.2</title>
+    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.40</title>
     <!-- Supabase JS: autenticação e banco de dados online -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Tailwind CSS -->
@@ -215,6 +215,37 @@ html { -webkit-text-size-adjust:100%; }
   #atleta-foto-file::file-selector-button {max-width:100%;white-space:normal;}
   #prev-foto-atleta {max-width:100%;}
 }
+</style>
+
+<style id="abaete-v2540-relatorio-responsivo">
+/* Prévia em cartões no celular; tabela tradicional no computador e no PDF. */
+@media screen and (max-width:767px) {
+  #aba-relatorios .bg-gray-200 {padding:8px!important;overflow:visible!important;}
+  #pdf-container {width:100%!important;min-width:0!important;padding:14px!important;box-shadow:none!important;overflow-wrap:anywhere;}
+  #pdf-container #pdf-tabela-atletas {display:block;width:100%;}
+  #pdf-container #pdf-tabela-atletas tr {display:block;background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:12px;margin:0 0 12px;box-shadow:0 1px 3px #0001;break-inside:avoid;}
+  #pdf-container #pdf-tabela-atletas td {display:block;width:100%;padding:8px 0!important;border:0!important;white-space:normal;overflow-wrap:anywhere;}
+  #pdf-container #pdf-tabela-atletas td+td {border-top:1px solid #f3f4f6!important;}
+  #pdf-container #pdf-tabela-atletas td::before {display:block;color:#6b7280;font-size:11px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;margin-bottom:4px;}
+  #pdf-container #pdf-tabela-atletas td:nth-child(1)::before {content:'Nome do atleta';}
+  #pdf-container #pdf-tabela-atletas td:nth-child(2)::before {content:'CPF / Nascimento';}
+  #pdf-container #pdf-tabela-atletas td:nth-child(3)::before {content:'Graduação / Corda';}
+  #pdf-container #pdf-tabela-atletas td:nth-child(4)::before {content:'Turma';}
+  #pdf-container #pdf-tabela-atletas td:nth-child(5)::before {content:'Responsável (se menor)';}
+  #pdf-container #pdf-tabela-atletas + * {max-width:100%;}
+  #pdf-container table:has(#pdf-tabela-atletas) {display:block;width:100%!important;min-width:0!important;}
+  #pdf-container table:has(#pdf-tabela-atletas) thead {display:none!important;}
+  #pdf-container table:has(#pdf-tabela-atletas) tbody {display:block!important;}
+}
+/* A cópia usada para exportar PDF não recebe a transformação mobile. */
+#pdf-container.abaete-v2540-export {width:794px!important;max-width:none!important;min-width:794px!important;padding:32px!important;box-shadow:none!important;}
+#pdf-container.abaete-v2540-export table:has(#pdf-tabela-atletas),
+#pdf-container.abaete-v2540-export #pdf-tabela-atletas {display:table!important;width:100%!important;}
+#pdf-container.abaete-v2540-export #pdf-tabela-atletas {display:table-row-group!important;}
+#pdf-container.abaete-v2540-export table:has(#pdf-tabela-atletas) thead {display:table-header-group!important;}
+#pdf-container.abaete-v2540-export #pdf-tabela-atletas tr {display:table-row!important;border:0!important;padding:0!important;margin:0!important;box-shadow:none!important;break-inside:avoid;page-break-inside:avoid;}
+#pdf-container.abaete-v2540-export #pdf-tabela-atletas td {display:table-cell!important;width:auto!important;padding:8px!important;border:0!important;}
+#pdf-container.abaete-v2540-export #pdf-tabela-atletas td::before {display:none!important;content:none!important;}
 </style>
 </head>
 <body class="bg-gray-100 font-sans text-gray-800 min-h-screen flex flex-col">
@@ -3186,17 +3217,36 @@ html { -webkit-text-size-adjust:100%; }
             }
         }
 
-        function gerarPDF() {
-            const element = document.getElementById('pdf-container');
+        async function gerarPDF() {
+            const original = document.getElementById('pdf-container');
+            if (!original) return;
+            // A exportação usa uma cópia em largura A4, sem modificar a prévia no iPhone.
+            const copia = original.cloneNode(true);
+            copia.classList.add('abaete-v2540-export');
+            copia.style.position = 'absolute';
+            copia.style.left = '0';
+            copia.style.top = '0';
+            copia.style.zIndex = '-1';
+            const suporte = document.createElement('div');
+            suporte.style.cssText = 'position:absolute;left:-10000px;top:0;width:794px;overflow:visible;';
+            suporte.appendChild(copia);
+            document.body.appendChild(suporte);
             const opt = {
-                margin:       10,
-                filename:     `Relatorio_Capoeira_Abaete_${new Date().toISOString().substring(0,10)}.pdf`,
-                image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2 },
-                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                margin: 10,
+                filename: `Relatorio_Capoeira_Abaete_${new Date().toISOString().substring(0,10)}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, windowWidth: 1100, scrollX: 0, scrollY: 0 },
+                pagebreak: { mode: ['css', 'legacy'], avoid: ['tr'] },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
             };
-
-            html2pdf().set(opt).from(element).save();
+            try {
+                await html2pdf().set(opt).from(copia).save();
+            } catch (erro) {
+                console.error('Erro ao exportar relatório:', erro);
+                alert('Não foi possível gerar o PDF. Tente novamente.');
+            } finally {
+                suporte.remove();
+            }
         }
 
         // NOVOS MÓDULOS: FINANCEIRO, DOCUMENTOS, EVOLUÇÃO E BACKUP
