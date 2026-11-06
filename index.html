@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.44</title>
+    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.45</title>
     <!-- Supabase JS: autenticação e banco de dados online -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Tailwind CSS -->
@@ -293,6 +293,12 @@ html { -webkit-text-size-adjust:100%; }
  #abaete-professor-turmas .bg-white.border.rounded-lg > button {display:inline-block!important;margin-left:0!important;margin-top:8px!important;margin-right:0!important;padding:8px 10px!important;border:1px solid #bfdbfe;border-radius:8px;background:#eff6ff}
  #barra-conta-online {z-index:1100!important}
 }
+</style>
+<style id="abaete-v2545-ajustes">
+/* Barra de conta integrada ao fluxo, sem sobreposição no iPhone. */
+#barra-conta-online:not(.hidden){position:relative!important;inset:auto!important;top:auto!important;right:auto!important;left:auto!important;bottom:auto!important;transform:none!important;width:100%!important;max-width:100%!important;box-shadow:none!important;z-index:40!important;display:flex!important;flex-wrap:wrap;gap:8px;align-items:center;justify-content:flex-end;}
+#barra-conta-online #btn-sair-online{position:static!important;transform:none!important;flex:0 0 auto;min-height:44px!important;cursor:pointer;}
+@media(max-width:767px){#barra-conta-online:not(.hidden){padding:8px 14px!important;min-height:60px;justify-content:flex-end;}#barra-conta-online #usuario-online{display:none!important;}body{padding-bottom:96px;}}
 </style>
 </head>
 <body class="bg-gray-100 font-sans text-gray-800 min-h-screen flex flex-col">
@@ -2013,7 +2019,7 @@ html { -webkit-text-size-adjust:100%; }
             const titulo=document.createElement('p');titulo.className='font-semibold';titulo.textContent=(data||[]).length+' aula(s) registrada(s) (até 100 recentes).';resultado.append(titulo);
             for(const aula of data||[]){
               const item=document.createElement('div');item.className='border rounded p-2 bg-white abaete-diario-registro';
-              const cab=document.createElement('strong');cab.textContent=(aula.data_aula||'Sem data')+' — '+(aula.presenca_professor||'');
+              const cab=document.createElement('strong');cab.textContent=(/^\d{4}-\d{2}-\d{2}$/.test(aula.data_aula||'') ? aula.data_aula.slice(8,10)+'/'+aula.data_aula.slice(5,7)+'/'+aula.data_aula.slice(0,4) : (aula.data_aula||'Sem data'))+' — '+(aula.presenca_professor||'');
               const texto=document.createElement('p');texto.className='whitespace-pre-wrap';texto.textContent=aula.conteudo||'Sem conteúdo';
               item.append(cab,texto);resultado.append(item);
             }
