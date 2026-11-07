@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.51</title>
+    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.52</title>
     <!-- Supabase JS: autenticação e banco de dados online -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Tailwind CSS -->
@@ -3401,6 +3401,7 @@ html { -webkit-text-size-adjust:100%; }
             // Integra chamadas locais e registros online por turma, mês e data.
             const chamadasRel = presencas.filter(p => (turmaSel === 'todas' || p.turma === turmaSel) && p.data.startsWith(mesSel));
             let datasAulas = new Set(chamadasRel.map(c => String(c.turma)+'|'+c.data));
+            let aulasRelatorioOnline = [];
             let totalChecks = 0, totalPres = 0;
             chamadasRel.forEach(c => Object.values(c.chamada || {}).forEach(v => { totalChecks++; if(v) totalPres++; }));
             const avisoId = 'abaete-aviso-relatorio-online';
@@ -3410,7 +3411,7 @@ html { -webkit-text-size-adjust:100%; }
             if (usuarioOnline && supabaseClient && /^\d{4}-\d{2}$/.test(mesSel)) {
                 try {
                     let consulta = supabaseClient.from('abaete_aulas_professores')
-                        .select('id,turma_id,data_aula').gte('data_aula',mesSel+'-01').lte('data_aula',mesSel+'-'+String(new Date(Number(mesSel.slice(0,4)), Number(mesSel.slice(5,7)), 0).getDate()).padStart(2,'0')).limit(1000);
+                        .select('id,turma_id,data_aula,conteudo,professor_id').gte('data_aula',mesSel+'-01').lte('data_aula',mesSel+'-'+String(new Date(Number(mesSel.slice(0,4)), Number(mesSel.slice(5,7)), 0).getDate()).padStart(2,'0')).limit(1000);
                     const turmaRel = turmaSel === 'todas' ? null : turmas.find(t => String(t.nome) === String(turmaSel));
                     if (turmaSel !== 'todas' && !turmaRel) throw new Error('Turma não encontrada no cadastro local.');
                     if (turmaRel) consulta = consulta.eq('turma_id',String(turmaRel.id));
@@ -3419,6 +3420,7 @@ html { -webkit-text-size-adjust:100%; }
                     if (versaoConsulta !== window.abaeteRelatorioVersaoConsulta) return;
                     const nomesTurmas = new Map(turmas.map(t => [String(t.id),String(t.nome)]));
                     const aulas = (aulasOnline || []).filter(a => nomesTurmas.has(String(a.turma_id)));
+                    aulasRelatorioOnline = aulas;
                     aulas.forEach(a => datasAulas.add(nomesTurmas.get(String(a.turma_id))+'|'+a.data_aula));
                     if (aulas.length) {
                         const ids = aulas.map(a => a.id);
@@ -3477,16 +3479,28 @@ html { -webkit-text-size-adjust:100%; }
             containerDiarios.innerHTML = '';
             const diariosRel = diarios.filter(d => (turmaSel === 'todas' || d.turma === turmaSel) && d.data.startsWith(mesSel));
 
-            if (diariosRel.length === 0) {
-                containerDiarios.innerHTML = `<p class="italic text-gray-400">Nenhum diário registrado para este mês/turma.</p>`;
+            // v25.52: unifica diários locais e aulas dos professores vindas do Supabase.
+            // textContent evita interpretar HTML contido em registros de usuários.
+            const registrosDiario = [
+                ...diariosRel.map(d => ({data:d.data, tema:d.tema || 'Diário do Mestre', conteudo:d.conteudo || '', origem:'local'})),
+                ...aulasRelatorioOnline.map(a => ({data:a.data_aula, tema:'Aula do professor', conteudo:a.conteudo || '', origem:'online'}))
+            ].sort((a,b) => String(a.data).localeCompare(String(b.data)));
+            if (!registrosDiario.length) {
+                const vazio = document.createElement('p');
+                vazio.className = 'italic text-gray-400';
+                vazio.textContent = 'Nenhum diário registrado para este mês/turma.';
+                containerDiarios.appendChild(vazio);
             } else {
-                diariosRel.forEach(d => {
+                registrosDiario.forEach(d => {
                     const div = document.createElement('div');
-                    div.className = "bg-gray-50 p-2.5 rounded border border-gray-200";
-                    div.innerHTML = `
-                        <p class="font-bold text-gray-800">${d.data.split('-').reverse().join('/')} - ${d.tema}</p>
-                        <p class="text-gray-600 mt-1">${d.conteudo}</p>
-                    `;
+                    div.className = 'bg-gray-50 p-2.5 rounded border border-gray-200';
+                    const titulo = document.createElement('p');
+                    titulo.className = 'font-bold text-gray-800';
+                    titulo.textContent = d.data.split('-').reverse().join('/')+' - '+d.tema;
+                    const conteudo = document.createElement('p');
+                    conteudo.className = 'text-gray-600 mt-1 whitespace-pre-line';
+                    conteudo.textContent = d.conteudo;
+                    div.append(titulo,conteudo);
                     containerDiarios.appendChild(div);
                 });
             }
