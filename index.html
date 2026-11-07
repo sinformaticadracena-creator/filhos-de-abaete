@@ -3410,7 +3410,7 @@ html { -webkit-text-size-adjust:100%; }
             if (usuarioOnline && supabaseClient && /^\d{4}-\d{2}$/.test(mesSel)) {
                 try {
                     let consulta = supabaseClient.from('abaete_aulas_professores')
-                        .select('id,turma_id,data_aula').gte('data_aula',mesSel+'-01').lte('data_aula',mesSel+'-31').limit(1000);
+                        .select('id,turma_id,data_aula').gte('data_aula',mesSel+'-01').lte('data_aula',mesSel+'-'+String(new Date(Number(mesSel.slice(0,4)), Number(mesSel.slice(5,7)), 0).getDate()).padStart(2,'0')).limit(1000);
                     const turmaRel = turmaSel === 'todas' ? null : turmas.find(t => String(t.nome) === String(turmaSel));
                     if (turmaSel !== 'todas' && !turmaRel) throw new Error('Turma não encontrada no cadastro local.');
                     if (turmaRel) consulta = consulta.eq('turma_id',String(turmaRel.id));
