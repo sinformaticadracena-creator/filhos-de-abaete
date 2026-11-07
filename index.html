@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.53</title>
+    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.54</title>
     <!-- Supabase JS: autenticação e banco de dados online -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Tailwind CSS -->
@@ -3404,6 +3404,7 @@ html { -webkit-text-size-adjust:100%; }
             let aulasRelatorioOnline = [];
             let erroConsultaDiarios = '';
             let totalChecks = 0, totalPres = 0;
+            let quantidadePresencasOnline = 0;
             chamadasRel.forEach(c => Object.values(c.chamada || {}).forEach(v => { totalChecks++; if(v) totalPres++; }));
             const avisoId = 'abaete-aviso-relatorio-online';
             let aviso = document.getElementById(avisoId);
@@ -3442,11 +3443,12 @@ html { -webkit-text-size-adjust:100%; }
                         presencasOnline.filter(p => aulasIds.has(String(p.aula_id))).forEach(p => {
                             const situacao = String(p.situacao || '').toLowerCase();
                             if (['presente','ausente','justificado','justificada'].includes(situacao)) {
-                                totalChecks++; if (situacao === 'presente') totalPres++;
+                                totalChecks++; quantidadePresencasOnline++; if (situacao === 'presente') totalPres++;
                             }
                         });
                     }
                     aviso.textContent = '';
+                    if (aulas.length && !totalChecks) aviso.textContent = 'Existem aulas registradas, mas nenhuma presença de aluno foi encontrada para este período. Abra a chamada da professora, marque os alunos e clique em Salvar Chamada do Dia.';
                 } catch (e) {
                     console.warn('Relatório online:',e);
                     erroConsultaDiarios = e.message || String(e);
@@ -3455,7 +3457,8 @@ html { -webkit-text-size-adjust:100%; }
             } else aviso.textContent = '';
             if (versaoConsulta !== window.abaeteRelatorioVersaoConsulta) return;
             document.getElementById('pdf-quant-aulas').innerText = datasAulas.size;
-            document.getElementById('pdf-quant-freq').innerText = (totalChecks ? Math.round(totalPres / totalChecks * 100) : 0) + '%';
+            document.getElementById('pdf-quant-freq').innerText = totalChecks ? Math.round(totalPres / totalChecks * 100) + '%' : '—';
+            document.getElementById('pdf-quant-freq').title = totalChecks ? totalPres+' presença(s) entre '+totalChecks+' marcação(ões) de chamada.' : 'Sem marcações de presença suficientes para calcular a frequência.';
 
             // Tabela Sintética Atletas no PDF
             const tbody = document.getElementById('pdf-tabela-atletas');
@@ -3487,7 +3490,9 @@ html { -webkit-text-size-adjust:100%; }
                 ...diariosRel.map(d => ({data:d.data, tema:d.tema || 'Diário do Mestre', conteudo:d.conteudo || '', origem:'local'})),
                 ...aulasRelatorioOnline.map(a => {
                     const prof = professores.find(p => String(p.id) === String(a.professor_id));
-                    return {data:a.data_aula, tema:prof ? 'Aula de '+nomeProfessor(prof) : 'Aula do professor', conteudo:a.conteudo || 'Conteúdo não informado.', origem:'online'};
+                    const turmaAula = turmas.find(t => String(t.id) === String(a.turma_id));
+                    const nomeInstrutor = prof ? nomeProfessor(prof) : (turmaAula && turmaAula.instrutor ? String(turmaAula.instrutor).trim() : '');
+                    return {data:a.data_aula, tema:nomeInstrutor ? 'Aula de '+nomeInstrutor : 'Aula registrada pelo professor', conteudo:a.conteudo || 'Conteúdo não informado.', origem:'online'};
                 })
             ].sort((a,b) => String(a.data).localeCompare(String(b.data)));
             if (!registrosDiario.length) {
