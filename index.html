@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.52</title>
+    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.53</title>
     <!-- Supabase JS: autenticação e banco de dados online -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Tailwind CSS -->
@@ -3402,6 +3402,7 @@ html { -webkit-text-size-adjust:100%; }
             const chamadasRel = presencas.filter(p => (turmaSel === 'todas' || p.turma === turmaSel) && p.data.startsWith(mesSel));
             let datasAulas = new Set(chamadasRel.map(c => String(c.turma)+'|'+c.data));
             let aulasRelatorioOnline = [];
+            let erroConsultaDiarios = '';
             let totalChecks = 0, totalPres = 0;
             chamadasRel.forEach(c => Object.values(c.chamada || {}).forEach(v => { totalChecks++; if(v) totalPres++; }));
             const avisoId = 'abaete-aviso-relatorio-online';
@@ -3448,7 +3449,8 @@ html { -webkit-text-size-adjust:100%; }
                     aviso.textContent = '';
                 } catch (e) {
                     console.warn('Relatório online:',e);
-                    aviso.textContent = 'Não foi possível consultar todas as aulas online: '+(e.message || String(e))+'. Os valores exibidos podem estar incompletos.';
+                    erroConsultaDiarios = e.message || String(e);
+                    aviso.textContent = 'Não foi possível consultar todas as aulas online: '+erroConsultaDiarios+'. Os valores exibidos podem estar incompletos.';
                 }
             } else aviso.textContent = '';
             if (versaoConsulta !== window.abaeteRelatorioVersaoConsulta) return;
@@ -3483,12 +3485,17 @@ html { -webkit-text-size-adjust:100%; }
             // textContent evita interpretar HTML contido em registros de usuários.
             const registrosDiario = [
                 ...diariosRel.map(d => ({data:d.data, tema:d.tema || 'Diário do Mestre', conteudo:d.conteudo || '', origem:'local'})),
-                ...aulasRelatorioOnline.map(a => ({data:a.data_aula, tema:'Aula do professor', conteudo:a.conteudo || '', origem:'online'}))
+                ...aulasRelatorioOnline.map(a => {
+                    const prof = professores.find(p => String(p.id) === String(a.professor_id));
+                    return {data:a.data_aula, tema:prof ? 'Aula de '+nomeProfessor(prof) : 'Aula do professor', conteudo:a.conteudo || 'Conteúdo não informado.', origem:'online'};
+                })
             ].sort((a,b) => String(a.data).localeCompare(String(b.data)));
             if (!registrosDiario.length) {
                 const vazio = document.createElement('p');
                 vazio.className = 'italic text-gray-400';
-                vazio.textContent = 'Nenhum diário registrado para este mês/turma.';
+                vazio.textContent = erroConsultaDiarios
+                    ? 'Não foi possível carregar os conteúdos das aulas online: '+erroConsultaDiarios
+                    : 'Nenhum diário registrado para este mês/turma.';
                 containerDiarios.appendChild(vazio);
             } else {
                 registrosDiario.forEach(d => {
