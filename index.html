@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.54</title>
+    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.55</title>
     <!-- Supabase JS: autenticação e banco de dados online -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Tailwind CSS -->
@@ -3405,6 +3405,7 @@ html { -webkit-text-size-adjust:100%; }
             let erroConsultaDiarios = '';
             let totalChecks = 0, totalPres = 0;
             let quantidadePresencasOnline = 0;
+            let aulasOnlineEncontradas = 0;
             chamadasRel.forEach(c => Object.values(c.chamada || {}).forEach(v => { totalChecks++; if(v) totalPres++; }));
             const avisoId = 'abaete-aviso-relatorio-online';
             let aviso = document.getElementById(avisoId);
@@ -3423,6 +3424,7 @@ html { -webkit-text-size-adjust:100%; }
                     const nomesTurmas = new Map(turmas.map(t => [String(t.id),String(t.nome)]));
                     const aulas = (aulasOnline || []).filter(a => nomesTurmas.has(String(a.turma_id)));
                     aulasRelatorioOnline = aulas;
+                    aulasOnlineEncontradas = aulas.length;
                     aulas.forEach(a => datasAulas.add(nomesTurmas.get(String(a.turma_id))+'|'+a.data_aula));
                     if (aulas.length) {
                         const ids = aulas.map(a => a.id);
@@ -3448,7 +3450,7 @@ html { -webkit-text-size-adjust:100%; }
                         });
                     }
                     aviso.textContent = '';
-                    if (aulas.length && !totalChecks) aviso.textContent = 'Existem aulas registradas, mas nenhuma presença de aluno foi encontrada para este período. Abra a chamada da professora, marque os alunos e clique em Salvar Chamada do Dia.';
+                    if (aulas.length && !quantidadePresencasOnline) aviso.textContent = 'Foram encontradas '+aulas.length+' aula(s), mas nenhuma marcação de presença online está visível para esta conta. Confira as permissões RLS de leitura da tabela abaete_presencas_alunos e os vínculos aula_id. Não é necessário apagar ou recriar as chamadas.';
                 } catch (e) {
                     console.warn('Relatório online:',e);
                     erroConsultaDiarios = e.message || String(e);
@@ -3458,6 +3460,11 @@ html { -webkit-text-size-adjust:100%; }
             if (versaoConsulta !== window.abaeteRelatorioVersaoConsulta) return;
             document.getElementById('pdf-quant-aulas').innerText = datasAulas.size;
             document.getElementById('pdf-quant-freq').innerText = totalChecks ? Math.round(totalPres / totalChecks * 100) + '%' : '—';
+            if (aulasOnlineEncontradas && quantidadePresencasOnline && !erroConsultaDiarios) {
+                document.getElementById('pdf-quant-freq').setAttribute('data-origem','presencas-online');
+            } else {
+                document.getElementById('pdf-quant-freq').removeAttribute('data-origem');
+            }
             document.getElementById('pdf-quant-freq').title = totalChecks ? totalPres+' presença(s) entre '+totalChecks+' marcação(ões) de chamada.' : 'Sem marcações de presença suficientes para calcular a frequência.';
 
             // Tabela Sintética Atletas no PDF
