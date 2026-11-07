@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.50</title>
+    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.51</title>
     <!-- Supabase JS: autenticação e banco de dados online -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Tailwind CSS -->
@@ -3376,7 +3376,8 @@ html { -webkit-text-size-adjust:100%; }
         }
 
         // PREVIEW E RELATÓRIO PDF
-        function atualizarPreviewRelatorio() {
+        async function atualizarPreviewRelatorio() {
+            const versaoConsulta = ++window.abaeteRelatorioVersaoConsulta || (window.abaeteRelatorioVersaoConsulta = 1);
             const turmaSel = document.getElementById('relatorio-turma').value;
             const mesSel = document.getElementById('relatorio-mes').value;
             const parecerText = document.getElementById('relatorio-parecer').value;
@@ -3397,21 +3398,60 @@ html { -webkit-text-size-adjust:100%; }
             const atletasRel = turmaSel === 'todas' ? atletas : atletas.filter(a => a.turma === turmaSel);
             document.getElementById('pdf-quant-atletas').innerText = atletasRel.length;
 
-            // Filtro chamadas
+            // Integra chamadas locais e registros online por turma, mês e data.
             const chamadasRel = presencas.filter(p => (turmaSel === 'todas' || p.turma === turmaSel) && p.data.startsWith(mesSel));
-            document.getElementById('pdf-quant-aulas').innerText = chamadasRel.length;
-
-            let totalChecks = 0;
-            let totalPres = 0;
-            chamadasRel.forEach(c => {
-                Object.values(c.chamada).forEach(v => {
-                    totalChecks++;
-                    if (v) totalPres++;
-                });
-            });
-
-            const mediaRel = totalChecks > 0 ? Math.round((totalPres / totalChecks) * 100) : 0;
-            document.getElementById('pdf-quant-freq').innerText = mediaRel + "%";
+            let datasAulas = new Set(chamadasRel.map(c => String(c.turma)+'|'+c.data));
+            let totalChecks = 0, totalPres = 0;
+            chamadasRel.forEach(c => Object.values(c.chamada || {}).forEach(v => { totalChecks++; if(v) totalPres++; }));
+            const avisoId = 'abaete-aviso-relatorio-online';
+            let aviso = document.getElementById(avisoId);
+            if (!aviso) { aviso = document.createElement('p'); aviso.id = avisoId; aviso.className = 'text-xs text-amber-800'; document.getElementById('pdf-quant-aulas').parentElement.parentElement.after(aviso); }
+            aviso.textContent = 'Consultando registros online...';
+            if (usuarioOnline && supabaseClient && /^\d{4}-\d{2}$/.test(mesSel)) {
+                try {
+                    let consulta = supabaseClient.from('abaete_aulas_professores')
+                        .select('id,turma_id,data_aula').gte('data_aula',mesSel+'-01').lte('data_aula',mesSel+'-31').limit(1000);
+                    const turmaRel = turmaSel === 'todas' ? null : turmas.find(t => String(t.nome) === String(turmaSel));
+                    if (turmaSel !== 'todas' && !turmaRel) throw new Error('Turma não encontrada no cadastro local.');
+                    if (turmaRel) consulta = consulta.eq('turma_id',String(turmaRel.id));
+                    const {data:aulasOnline,error:erroAulas} = await consulta;
+                    if (erroAulas) throw erroAulas;
+                    if (versaoConsulta !== window.abaeteRelatorioVersaoConsulta) return;
+                    const nomesTurmas = new Map(turmas.map(t => [String(t.id),String(t.nome)]));
+                    const aulas = (aulasOnline || []).filter(a => nomesTurmas.has(String(a.turma_id)));
+                    aulas.forEach(a => datasAulas.add(nomesTurmas.get(String(a.turma_id))+'|'+a.data_aula));
+                    if (aulas.length) {
+                        const ids = aulas.map(a => a.id);
+                        const presencasOnline = [];
+                        for (let i=0;i<ids.length;i+=200) {
+                            const {data,error} = await supabaseClient.from('abaete_presencas_alunos')
+                                .select('aula_id,aluno_id,situacao').in('aula_id',ids.slice(i,i+200)).limit(1000);
+                            if (error) throw error;
+                            presencasOnline.push(...(data || []));
+                        }
+                        if (versaoConsulta !== window.abaeteRelatorioVersaoConsulta) return;
+                        // Somente presenças das aulas online: evita duplicar chamada local da mesma turma/data.
+                        const datasOnline = new Set(aulas.map(a => nomesTurmas.get(String(a.turma_id))+'|'+a.data_aula));
+                        totalChecks = 0; totalPres = 0;
+                        chamadasRel.filter(c => !datasOnline.has(String(c.turma)+'|'+c.data))
+                            .forEach(c => Object.values(c.chamada || {}).forEach(v => { totalChecks++; if(v) totalPres++; }));
+                        const aulasIds = new Set(ids.map(String));
+                        presencasOnline.filter(p => aulasIds.has(String(p.aula_id))).forEach(p => {
+                            const situacao = String(p.situacao || '').toLowerCase();
+                            if (['presente','ausente','justificado','justificada'].includes(situacao)) {
+                                totalChecks++; if (situacao === 'presente') totalPres++;
+                            }
+                        });
+                    }
+                    aviso.textContent = '';
+                } catch (e) {
+                    console.warn('Relatório online:',e);
+                    aviso.textContent = 'Não foi possível consultar todas as aulas online: '+(e.message || String(e))+'. Os valores exibidos podem estar incompletos.';
+                }
+            } else aviso.textContent = '';
+            if (versaoConsulta !== window.abaeteRelatorioVersaoConsulta) return;
+            document.getElementById('pdf-quant-aulas').innerText = datasAulas.size;
+            document.getElementById('pdf-quant-freq').innerText = (totalChecks ? Math.round(totalPres / totalChecks * 100) : 0) + '%';
 
             // Tabela Sintética Atletas no PDF
             const tbody = document.getElementById('pdf-tabela-atletas');
@@ -3453,6 +3493,7 @@ html { -webkit-text-size-adjust:100%; }
         }
 
         async function gerarPDF() {
+            await atualizarPreviewRelatorio();
             const original = document.getElementById('pdf-container');
             if (!original) return;
             if (typeof html2pdf === 'undefined') {
