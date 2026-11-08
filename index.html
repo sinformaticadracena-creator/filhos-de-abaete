@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.55</title>
+    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.56 PDF</title>
     <!-- Supabase JS: autenticação e banco de dados online -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Tailwind CSS -->
@@ -357,6 +357,39 @@ html { -webkit-text-size-adjust:100%; }
  #aba-chamada .mt-6.border-t.pt-4{justify-content:stretch!important}
  #aba-chamada .mt-6.border-t.pt-4>button{width:100%;justify-content:center;min-height:50px;text-align:center}
  .abaete-chamada-professor .abaete-chamada-atleta button{border-radius:12px}
+}
+</style>
+
+<style id="abaete-v2556-pdf-ajustes">
+/* Correções limitadas à cópia do relatório exportada para PDF. */
+#pdf-container.abaete-v2540-export,
+#pdf-container.abaete-v2540-export * {
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+#pdf-container.abaete-v2540-export .corda-badge,
+#pdf-container.abaete-v2540-export .abaete-corda-texto {
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+#pdf-container.abaete-v2540-export #pdf-tabela-atletas tr,
+#pdf-container.abaete-v2540-export #pdf-lista-diarios > div,
+#pdf-container.abaete-v2540-export #pdf-parecer-texto,
+#pdf-container.abaete-v2540-export .abaete-pdf-assinaturas {
+  break-inside: avoid !important;
+  page-break-inside: avoid !important;
+}
+#pdf-container.abaete-v2540-export #pdf-lista-diarios > div {
+  margin-bottom: 8px !important;
+}
+#pdf-container.abaete-v2540-export .abaete-pdf-assinaturas {
+  padding-top: 28px !important;
+}
+#pdf-container.abaete-v2540-export #pdf-parecer-texto.abaete-parecer-vazio {
+  padding: 7px 10px !important;
+  background: #f9fafb !important;
+  border-color: #e5e7eb !important;
+  color: #6b7280 !important;
 }
 </style>
 </head>
@@ -899,7 +932,7 @@ html { -webkit-text-size-adjust:100%; }
                     </div>
 
                     <!-- ASSINATURAS -->
-                    <div class="pt-12 grid grid-cols-2 gap-8 text-center text-xs">
+                    <div class="pt-12 grid grid-cols-2 gap-8 text-center text-xs abaete-pdf-assinaturas">
                         <div class="border-t border-gray-400 pt-2">
                             <p id="pdf-responsavel-turma" class="font-bold">Mestre / Instrutor Responsável</p>
                             <p class="text-gray-500">Responsável pela Turma</p>
@@ -3384,7 +3417,9 @@ html { -webkit-text-size-adjust:100%; }
 
             document.getElementById('pdf-data-emissao').innerText = new Date().toLocaleDateString('pt-BR');
             document.getElementById('pdf-turma-nome').innerText = turmaSel === 'todas' ? 'Todas as Turmas' : turmaSel;
-            document.getElementById('pdf-parecer-texto').innerText = parecerText || "Nenhum parecer digitado.";
+            const parecerEl = document.getElementById('pdf-parecer-texto');
+            parecerEl.textContent = parecerText.trim() || 'Nenhum parecer registrado para este período.';
+            parecerEl.classList.toggle('abaete-parecer-vazio', !parecerText.trim());
 
             // v25.20: nome do responsável vem do cadastro da turma selecionada.
             // A linha de assinatura permanece vazia para assinatura manual.
@@ -3550,7 +3585,7 @@ html { -webkit-text-size-adjust:100%; }
                     image: {type:'jpeg',quality:0.98},
                     html2canvas: {scale: 1.5, scrollX: 0, scrollY: 0, backgroundColor:'#ffffff', useCORS:true},
                     jsPDF: {unit:'mm',format:'a4',orientation:'landscape'},
-                    pagebreak: {mode:['css','legacy'],avoid:['tr']}
+                    pagebreak: {mode:['css','legacy'],avoid:['tr','#pdf-lista-diarios > div','#pdf-parecer-texto','.abaete-pdf-assinaturas']}
                 }).from(copia).save();
             } catch (erro) {
                 console.error('Erro ao exportar relatório:', erro);
