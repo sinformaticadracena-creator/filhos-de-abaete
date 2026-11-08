@@ -914,9 +914,9 @@ html { -webkit-text-size-adjust:100%; }
                     <!-- FREQUÊNCIA INDIVIDUAL -->
                     <div class="space-y-3">
                         <h4 class="font-bold text-sm text-gray-800 uppercase border-b pb-1 border-gray-200">3. Frequência Individual dos Atletas</h4>
-                        <p class="text-xs text-gray-500">Situação por aluno no mês selecionado. Justificativas são contabilizadas separadamente e não como presença.</p>
+                        <p class="text-xs text-gray-500">Situação por aluno no mês selecionado. Aulas sem registro não são consideradas faltas. Justificativas não são contabilizadas como presença.</p>
                         <div class="overflow-x-auto"><table class="w-full text-xs text-left border-collapse">
-                            <thead><tr class="bg-gray-100 border-b"><th class="p-2">Atleta</th><th class="p-2">Presentes</th><th class="p-2">Ausentes</th><th class="p-2">Justificados</th><th class="p-2">Frequência</th><th class="p-2">Situação</th></tr></thead>
+                            <thead><tr class="bg-gray-100 border-b"><th class="p-2">Atleta</th><th class="p-2">Presentes</th><th class="p-2">Ausentes</th><th class="p-2">Justificados</th><th class="p-2">Sem registro</th><th class="p-2">Frequência</th><th class="p-2">Situação</th></tr></thead>
                             <tbody id="pdf-frequencia-individual"></tbody>
                         </table></div>
                         <p id="pdf-frequencia-individual-aviso" class="text-xs text-amber-800"></p>
@@ -3471,7 +3471,7 @@ html { -webkit-text-size-adjust:100%; }
                             const situacao = String(p.situacao || '').toLowerCase();
                             if (['presente','ausente','justificado','justificada'].includes(situacao)) {
                                 totalChecks++; quantidadePresencasOnline++; if (situacao === 'presente') totalPres++;
-                                registrosIndividuais.push({aluno_id:String(p.aluno_id),situacao:situacao === 'justificada' ? 'justificado' : situacao,origem:'online'});
+                                registrosIndividuais.push({aluno_id:String(p.aluno_id),situacao:situacao === 'justificada' ? 'justificado' : situacao,origem:'online',chave: nomesTurmas.get(String(aulas.find(a => String(a.id) === String(p.aula_id))?.turma_id))+'|'+(aulas.find(a => String(a.id) === String(p.aula_id))?.data_aula || '')});
                             }
                         });
                     }
@@ -3498,24 +3498,26 @@ html { -webkit-text-size-adjust:100%; }
             const tbodyIndividual = document.getElementById('pdf-frequencia-individual');
             const avisoIndividual = document.getElementById('pdf-frequencia-individual-aviso');
             tbodyIndividual.replaceChildren();
-            const contagens = new Map(atletasRel.map(a => [String(a.id),{presente:0,ausente:0,justificado:0}]));
+            const contagens = new Map(atletasRel.map(a => [String(a.id),{presente:0,ausente:0,justificado:0,chaves:new Set()}]));
             const mapaIds = new Map();
             atletasRel.forEach(a => { mapaIds.set(String(a.id),String(a.id)); if(a.cadastroOnlineId) mapaIds.set(String(a.cadastroOnlineId),String(a.id)); });
             let semCorrespondencia = 0;
             registrosIndividuais.forEach(r => {
                 const id = mapaIds.get(String(r.aluno_id));
                 if(!id){semCorrespondencia++;return;}
-                const c = contagens.get(id); if(c && Object.prototype.hasOwnProperty.call(c,r.situacao)) c[r.situacao]++;
+                const c = contagens.get(id); if(c && Object.prototype.hasOwnProperty.call(c,r.situacao)) { c[r.situacao]++; if(r.chave) c.chaves.add(r.chave); }
             });
             atletasRel.forEach(a => {
                 const c = contagens.get(String(a.id)); const marcadas = c.presente+c.ausente+c.justificado;
+                const totalAulasTurma = [...datasAulas].filter(chave => chave.startsWith(String(a.turma)+'|')).length;
+                const semRegistro = Math.max(0,totalAulasTurma-c.chaves.size);
                 const percentual = marcadas ? Math.round(100*c.presente/marcadas)+'%' : '—';
                 const situacao = marcadas ? (c.ausente ? 'Com faltas' : c.justificado ? 'Com justificativa' : 'Sem faltas') : 'Sem registros';
                 const tr=document.createElement('tr'); tr.className='border-b border-gray-200';
-                [a.nome,c.presente,c.ausente,c.justificado,percentual,situacao].forEach(v => {const td=document.createElement('td');td.className='p-2';td.textContent=String(v);tr.appendChild(td);});
+                [a.nome,c.presente,c.ausente,c.justificado,semRegistro,percentual,situacao].forEach(v => {const td=document.createElement('td');td.className='p-2';td.textContent=String(v);tr.appendChild(td);});
                 tbodyIndividual.appendChild(tr);
             });
-            avisoIndividual.textContent = (semCorrespondencia ? semCorrespondencia+' marcação(ões) não puderam ser associadas a um atleta cadastrado. ' : '') + (erroConsultaDiarios ? 'Consulta online incompleta; confira as permissões e tente novamente.' : 'Percentuais calculados apenas sobre marcações identificadas por atleta.');
+            avisoIndividual.textContent = (semCorrespondencia ? semCorrespondencia+' marcação(ões) não puderam ser associadas a um atleta cadastrado. ' : '') + (erroConsultaDiarios ? 'Consulta online incompleta; confira as permissões e tente novamente.' : 'Sem registro = aulas da turma no período sem marcação identificada para o aluno; não são contabilizadas como faltas. A contagem considera todas as aulas da turma no mês, inclusive anteriores à eventual matrícula do aluno. Percentuais calculados apenas sobre marcações identificadas por atleta.');
 
             // Tabela Sintética Atletas no PDF
             const tbody = document.getElementById('pdf-tabela-atletas');
