@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.57 PDF</title>
+    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.58 Situação Individual</title>
     <!-- Supabase JS: autenticação e banco de dados online -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Tailwind CSS -->
@@ -1894,7 +1894,7 @@ html { -webkit-text-size-adjust:100%; }
               const subtitulo=document.createElement('div');subtitulo.className='text-xs text-gray-500';subtitulo.innerHTML=getGraduacaoBadge(graduacoes.get(String(aluno.id))||'Sem graduação');
               detalhes.append(nome,subtitulo);identificacao.append(avatar,detalhes);
               const controle=document.createElement('div');controle.className='flex items-center gap-2 shrink-0';
-              const sel=document.createElement('select');sel.className='sr-only';sel.dataset.presencaAluno='1';
+              const sel=document.createElement('select');sel.className='border border-gray-300 rounded-xl px-3 py-2 bg-white text-sm font-bold min-h-11 max-w-full';sel.dataset.presencaAluno='1';
               sel.setAttribute('aria-label','Situação de '+aluno.nome_completo);
               for(const [valor,rotulo] of [['','Selecione...'],['presente','Presente'],['ausente','Ausente'],['justificado','Justificado']]){
                 const opt=document.createElement('option');opt.value=valor;opt.textContent=rotulo;sel.append(opt);
@@ -1911,8 +1911,8 @@ html { -webkit-text-size-adjust:100%; }
               alternar.addEventListener('click',()=>{sel.value=sel.value==='presente'?'ausente':sel.value==='ausente'?'justificado':'presente';atualizarBotao();});
               sel.addEventListener('change',atualizarBotao);
               atualizarBotao();
-              // O botão principal reproduz a chamada do Mestre; o seletor permite escolher Justificado diretamente.
-              controle.append(alternar,sel);linha.append(identificacao,controle);area.append(linha);linhas.push({aluno,sel});
+              // Situação visível para cada aluno, inclusive Justificado.
+              controle.append(sel);linha.append(identificacao,controle);area.append(linha);linhas.push({aluno,sel});
             }
             const salvar=document.createElement('button');salvar.type='button';salvar.className='px-5 py-3 bg-red-700 text-white rounded-xl font-bold shadow-sm';salvar.textContent='💾 Salvar Chamada do Dia';
             const msg=document.createElement('p');msg.className='text-sm';const rodape=document.createElement('div');rodape.className='flex flex-wrap justify-end gap-3 pt-4 border-t';rodape.append(salvar);area.append(rodape,msg);
@@ -3043,53 +3043,26 @@ html { -webkit-text-size-adjust:100%; }
             const registroExistente = presencas.find(p => p.turma === turma && p.data === data);
 
             atletasTurma.forEach(a => {
-                let estevePresente = true;
-                if (registroExistente && registroExistente.chamada) {
-                    estevePresente = registroExistente.chamada[a.id] !== false;
-                }
-
+                const anterior = registroExistente?.chamada?.[a.id];
+                const estado = anterior === true ? 'presente' : anterior === false ? 'ausente' : ['presente','ausente','justificado'].includes(anterior) ? anterior : '';
                 const item = document.createElement('div');
-                item.className = "abaete-chamada-atleta flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-200 hover:bg-gray-100 transition";
-                item.innerHTML = `
-                    <div class="flex items-center gap-3">
-                        <div class="w-8 h-8 rounded-full bg-abaete-red/10 text-abaete-red font-bold text-xs flex items-center justify-center">
-                            ${a.nome.substring(0,2).toUpperCase()}
-                        </div>
-                        <div>
-                            <p class="font-bold text-gray-800 text-sm">${a.nome} ${a.apelido ? '<span class="text-abaete-red text-xs">(' + a.apelido + ')</span>' : ''}</p>
-                            <div class="mt-1 text-[11px]">${getGraduacaoBadge(a.graduacao || "Sem graduação")}</div>
-                        </div>
-                    </div>
-                    <label class="inline-flex items-center cursor-pointer select-none">
-                        <input type="checkbox" data-atleta-id="${a.id}" ${estevePresente ? 'checked' : ''} class="atleta-presenca-check hidden">
-                        <span class="btn-presenca px-4 py-1.5 rounded-xl text-xs font-bold transition-all shadow-sm ${estevePresente ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}">
-                            ${estevePresente ? '<i class="fa-solid fa-check mr-1"></i> Presente' : '<i class="fa-solid fa-xmark mr-1"></i> Ausente'}
-                        </span>
-                    </label>
-                `;
-
-                const chk = item.querySelector('.atleta-presenca-check');
-                const btn = item.querySelector('.btn-presenca');
-
-                chk.addEventListener('change', function () {
-                    if (this.checked) {
-                        btn.className = "btn-presenca px-4 py-1.5 rounded-xl text-xs font-bold transition-all shadow-sm bg-green-600 text-white";
-                        btn.innerHTML = '<i class="fa-solid fa-check mr-1"></i> Presente';
-                    } else {
-                        btn.className = "btn-presenca px-4 py-1.5 rounded-xl text-xs font-bold transition-all shadow-sm bg-red-600 text-white";
-                        btn.innerHTML = '<i class="fa-solid fa-xmark mr-1"></i> Ausente';
-                    }
-                });
-
-                container.appendChild(item);
+                item.className = 'abaete-chamada-atleta flex flex-wrap items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-200 gap-3';
+                const info = document.createElement('div'); info.className='flex-1 min-w-0';
+                const nome = document.createElement('p');nome.className='font-bold text-gray-800 text-sm';nome.textContent=a.nome+(a.apelido?' ('+a.apelido+')':'');
+                const grad=document.createElement('div');grad.className='mt-1 text-xs';grad.innerHTML=getGraduacaoBadge(a.graduacao||'Sem graduação');
+                info.append(nome,grad);
+                const seletor=document.createElement('select');seletor.className='atleta-situacao-select border border-gray-300 rounded-xl px-3 py-3 bg-white font-bold text-sm min-w-36';
+                seletor.dataset.atletaId=String(a.id);seletor.setAttribute('aria-label','Situação de '+a.nome);
+                [['','Selecione a situação'],['presente','✓ Presente'],['ausente','✕ Ausente'],['justificado','! Justificado']].forEach(([v,t])=>{const o=document.createElement('option');o.value=v;o.textContent=t;seletor.append(o);});
+                seletor.value=estado;
+                const pintar=()=>{seletor.style.backgroundColor=seletor.value==='presente'?'#dcfce7':seletor.value==='ausente'?'#fee2e2':seletor.value==='justificado'?'#fef3c7':'#fff';};
+                seletor.addEventListener('change',pintar);pintar();item.append(info,seletor);container.append(item);
             });
         }
 
         function marcarTodos(status) {
-            const checks = document.querySelectorAll('.atleta-presenca-check');
-            checks.forEach(c => {
-                c.checked = status;
-                c.dispatchEvent(new Event('change'));
+            document.querySelectorAll('.atleta-situacao-select').forEach(c => {
+                c.value=status?'presente':'ausente';c.dispatchEvent(new Event('change'));
             });
         }
 
@@ -3099,15 +3072,17 @@ html { -webkit-text-size-adjust:100%; }
             if (abaeteChamadaSalvando) return;
             const turma = document.getElementById('chamada-turma-select').value;
             const data = document.getElementById('chamada-data').value;
-            const checks = document.querySelectorAll('.atleta-presenca-check');
+            const checks = document.querySelectorAll('.atleta-situacao-select');
             if (!turma || !data) { alert('Selecione a turma e a data.'); return; }
             if (!checks.length) { alert('Não há atletas na lista para registrar.'); return; }
             if (!supabaseClient || !usuarioOnline || !sincronizacaoPronta || papelOnline !== 'administrador') {
                 alert('Aguarde a conexão com o Supabase e entre como Mestre antes de salvar a chamada.');
                 return;
             }
+            const pendentes=[...checks].filter(c=>!c.value);
+            if(pendentes.length){alert('Defina a situação de todos os '+pendentes.length+' aluno(s) pendente(s) antes de salvar.');pendentes[0].focus();return;}
             const chamadaObj = {};
-            checks.forEach(c => { chamadaObj[c.getAttribute('data-atleta-id')] = c.checked; });
+            checks.forEach(c => { chamadaObj[c.dataset.atletaId] = c.value; });
             const anterior = presencas.map(p => ({...p, chamada: p.chamada ? {...p.chamada} : p.chamada}));
             const idx = presencas.findIndex(p => p.turma === turma && p.data === data);
             if (idx !== -1) presencas[idx].chamada = chamadaObj;
@@ -3332,7 +3307,7 @@ html { -webkit-text-size-adjust:100%; }
             presencasMes.forEach(p => {
                 Object.values(p.chamada).forEach(val => {
                     totalChecks++;
-                    if (val) totalPresentes++;
+                    if (val === true || val === 'presente') totalPresentes++;
                 });
             });
 
@@ -3373,7 +3348,7 @@ html { -webkit-text-size-adjust:100%; }
                 registros.forEach(r => {
                     Object.values(r.chamada).forEach(v => {
                         total++;
-                        if (v) pres++;
+                        if (v === true || v === 'presente') pres++;
                     });
                 });
                 return total > 0 ? Math.round((pres / total) * 100) : 0;
