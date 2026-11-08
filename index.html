@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.56 PDF</title>
+    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.57 PDF</title>
     <!-- Supabase JS: autenticação e banco de dados online -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Tailwind CSS -->
@@ -3574,6 +3574,23 @@ html { -webkit-text-size-adjust:100%; }
             suporte.style.cssText = 'position:fixed;inset:0;z-index:999999;background:#e5e7eb;overflow:auto;-webkit-overflow-scrolling:touch;';
             const copia = original.cloneNode(true);
             copia.classList.add('abaete-v2540-export');
+            // v25.57: elimina somente na cópia do PDF o span interno das
+            // graduações, que o html2canvas desenhava como uma caixa vazia.
+            // Mantém o texto e a cor original da corda, sem alterar a prévia.
+            copia.querySelectorAll('#pdf-tabela-atletas .corda-badge').forEach(badge => {
+                const texto = badge.textContent.trim();
+                badge.textContent = texto;
+                badge.style.setProperty('display', 'inline-block', 'important');
+                badge.style.setProperty('color', '#111827', 'important');
+                badge.style.setProperty('font-weight', '700', 'important');
+                badge.style.setProperty('font-size', '12px', 'important');
+                badge.style.setProperty('line-height', '1.4', 'important');
+                badge.style.setProperty('text-shadow', 'none', 'important');
+                badge.style.setProperty('white-space', 'normal', 'important');
+                badge.style.setProperty('padding', '7px 12px', 'important');
+                badge.style.setProperty('-webkit-print-color-adjust', 'exact', 'important');
+                badge.style.setProperty('print-color-adjust', 'exact', 'important');
+            });
             copia.style.cssText = 'position:relative!important;left:auto!important;top:auto!important;z-index:1!important;display:block!important;visibility:visible!important;opacity:1!important;margin:0!important;background:#fff!important;';
             suporte.appendChild(copia);
             document.body.appendChild(suporte);
