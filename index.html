@@ -911,10 +911,20 @@ html { -webkit-text-size-adjust:100%; }
                         </table>
                     </div>
 
+                    <!-- FREQUÊNCIA INDIVIDUAL -->
+                    <div class="space-y-3">
+                        <h4 class="font-bold text-sm text-gray-800 uppercase border-b pb-1 border-gray-200">3. Frequência Individual dos Atletas</h4>
+                        <p class="text-xs text-gray-500">Situação por aluno no mês selecionado. Justificativas são contabilizadas separadamente e não como presença.</p>
+                        <div class="overflow-x-auto"><table class="w-full text-xs text-left border-collapse">
+                            <thead><tr class="bg-gray-100 border-b"><th class="p-2">Atleta</th><th class="p-2">Presentes</th><th class="p-2">Ausentes</th><th class="p-2">Justificados</th><th class="p-2">Frequência</th><th class="p-2">Situação</th></tr></thead>
+                            <tbody id="pdf-frequencia-individual"></tbody>
+                        </table></div>
+                        <p id="pdf-frequencia-individual-aviso" class="text-xs text-amber-800"></p>
+                    </div>
                     <!-- RESUMO QUALITATIVO (DIÁRIOS DO MÊS) -->
                     <div class="space-y-3">
                         <h4 class="font-bold text-sm text-gray-800 uppercase border-b pb-1 border-gray-200">
-                            3. Registro das Atividades e Conteúdos Trabalhados
+                            4. Registro das Atividades e Conteúdos Trabalhados
                         </h4>
                         <div id="pdf-lista-diarios" class="space-y-2 text-xs">
                             <!-- Preenchido via JS -->
@@ -924,7 +934,7 @@ html { -webkit-text-size-adjust:100%; }
                     <!-- PARECER PEDAGÓGICO DO MESTRE -->
                     <div class="space-y-2">
                         <h4 class="font-bold text-sm text-gray-800 uppercase border-b pb-1 border-gray-200">
-                            4. Parecer Pedagógico do Instrutor / Mestre
+                            5. Parecer Pedagógico do Instrutor / Mestre
                         </h4>
                         <div class="p-3 bg-amber-50 rounded-xl border border-amber-200 italic text-xs text-gray-700" id="pdf-parecer-texto">
                             Nenhum parecer digitado.
@@ -3416,7 +3426,11 @@ html { -webkit-text-size-adjust:100%; }
             let totalChecks = 0, totalPres = 0;
             let quantidadePresencasOnline = 0;
             let aulasOnlineEncontradas = 0;
-            chamadasRel.forEach(c => Object.values(c.chamada || {}).forEach(v => { totalChecks++; if(v) totalPres++; }));
+            const registrosIndividuais = [];
+            chamadasRel.forEach(c => Object.entries(c.chamada || {}).forEach(([id,v]) => {
+                totalChecks++; if(v === true || v === 'presente') totalPres++;
+                registrosIndividuais.push({aluno_id:String(id),situacao:v === true || v === 'presente' ? 'presente' : v === 'justificado' ? 'justificado' : 'ausente', origem:'local', chave:String(c.turma)+'|'+c.data});
+            }));
             const avisoId = 'abaete-aviso-relatorio-online';
             let aviso = document.getElementById(avisoId);
             if (!aviso) { aviso = document.createElement('p'); aviso.id = avisoId; aviso.className = 'text-xs text-amber-800'; document.getElementById('pdf-quant-aulas').parentElement.parentElement.after(aviso); }
@@ -3449,6 +3463,7 @@ html { -webkit-text-size-adjust:100%; }
                         // Somente presenças das aulas online: evita duplicar chamada local da mesma turma/data.
                         const datasOnline = new Set(aulas.map(a => nomesTurmas.get(String(a.turma_id))+'|'+a.data_aula));
                         totalChecks = 0; totalPres = 0;
+                        for(let i=registrosIndividuais.length-1;i>=0;i--) if(datasOnline.has(registrosIndividuais[i].chave)) registrosIndividuais.splice(i,1);
                         chamadasRel.filter(c => !datasOnline.has(String(c.turma)+'|'+c.data))
                             .forEach(c => Object.values(c.chamada || {}).forEach(v => { totalChecks++; if(v) totalPres++; }));
                         const aulasIds = new Set(ids.map(String));
@@ -3456,6 +3471,7 @@ html { -webkit-text-size-adjust:100%; }
                             const situacao = String(p.situacao || '').toLowerCase();
                             if (['presente','ausente','justificado','justificada'].includes(situacao)) {
                                 totalChecks++; quantidadePresencasOnline++; if (situacao === 'presente') totalPres++;
+                                registrosIndividuais.push({aluno_id:String(p.aluno_id),situacao:situacao === 'justificada' ? 'justificado' : situacao,origem:'online'});
                             }
                         });
                     }
@@ -3476,6 +3492,30 @@ html { -webkit-text-size-adjust:100%; }
                 document.getElementById('pdf-quant-freq').removeAttribute('data-origem');
             }
             document.getElementById('pdf-quant-freq').title = totalChecks ? totalPres+' presença(s) entre '+totalChecks+' marcação(ões) de chamada.' : 'Sem marcações de presença suficientes para calcular a frequência.';
+
+            // Frequência individual: relaciona IDs do Supabase aos cadastros locais por cadastroOnlineId.
+            // Nunca atribui 0% quando não há marcações verificáveis para o aluno.
+            const tbodyIndividual = document.getElementById('pdf-frequencia-individual');
+            const avisoIndividual = document.getElementById('pdf-frequencia-individual-aviso');
+            tbodyIndividual.replaceChildren();
+            const contagens = new Map(atletasRel.map(a => [String(a.id),{presente:0,ausente:0,justificado:0}]));
+            const mapaIds = new Map();
+            atletasRel.forEach(a => { mapaIds.set(String(a.id),String(a.id)); if(a.cadastroOnlineId) mapaIds.set(String(a.cadastroOnlineId),String(a.id)); });
+            let semCorrespondencia = 0;
+            registrosIndividuais.forEach(r => {
+                const id = mapaIds.get(String(r.aluno_id));
+                if(!id){semCorrespondencia++;return;}
+                const c = contagens.get(id); if(c && Object.prototype.hasOwnProperty.call(c,r.situacao)) c[r.situacao]++;
+            });
+            atletasRel.forEach(a => {
+                const c = contagens.get(String(a.id)); const marcadas = c.presente+c.ausente+c.justificado;
+                const percentual = marcadas ? Math.round(100*c.presente/marcadas)+'%' : '—';
+                const situacao = marcadas ? (c.ausente ? 'Com faltas' : c.justificado ? 'Com justificativa' : 'Sem faltas') : 'Sem registros';
+                const tr=document.createElement('tr'); tr.className='border-b border-gray-200';
+                [a.nome,c.presente,c.ausente,c.justificado,percentual,situacao].forEach(v => {const td=document.createElement('td');td.className='p-2';td.textContent=String(v);tr.appendChild(td);});
+                tbodyIndividual.appendChild(tr);
+            });
+            avisoIndividual.textContent = (semCorrespondencia ? semCorrespondencia+' marcação(ões) não puderam ser associadas a um atleta cadastrado. ' : '') + (erroConsultaDiarios ? 'Consulta online incompleta; confira as permissões e tente novamente.' : 'Percentuais calculados apenas sobre marcações identificadas por atleta.');
 
             // Tabela Sintética Atletas no PDF
             const tbody = document.getElementById('pdf-tabela-atletas');
