@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.61.9 Correção Enquadramento PDF</title>
+    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.61.11 Observação PDF sem quebra</title>
     <!-- Supabase JS: autenticação e banco de dados online -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Tailwind CSS -->
@@ -3769,15 +3769,18 @@ html { -webkit-text-size-adjust:100%; }
                         }).filter(y => y > inicio + alturaFatia * .55 && y < fim && fim-y < 95);
                         if (titulos.length) fim = Math.min(fim, ...titulos);
                     }
-                    // Proteção extra: caso a observação/assinaturas atravessem o limite,
-                    // iniciar o bloco inteiro na próxima página.
+                    // v25.61.11: a observação de frequência deve ficar inteira
+                    // na mesma folha. Como o PDF é montado por fatias de imagem,
+                    // CSS break-inside sozinho não impede um corte no parágrafo.
+                    // Reservar 6 pixels de segurança contra arredondamento da captura.
                     for (const seletor of ['#pdf-frequencia-individual-aviso', '.abaete-pdf-assinaturas']) {
                         const el = copia.querySelector(seletor);
-                        if (!el) continue;
+                        if (!el || !el.getClientRects().length) continue;
                         const r = el.getBoundingClientRect();
-                        const topo = Math.round((r.top - rectBase.top) * fatorY);
-                        const base = Math.round((r.bottom - rectBase.top) * fatorY);
-                        if (topo > inicio + 4 && topo < fim && base > fim && base - topo < alturaFatia) {
+                        const topo = Math.max(0, Math.floor((r.top - rectBase.top) * fatorY) - 6);
+                        const base = Math.min(canvas.height, Math.ceil((r.bottom - rectBase.top) * fatorY) + 6);
+                        const cabeNaPagina = base - topo < alturaFatia;
+                        if (cabeNaPagina && topo > inicio && topo < fim && base > fim) {
                             fim = topo;
                         }
                     }
