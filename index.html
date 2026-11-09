@@ -3769,6 +3769,20 @@ html { -webkit-text-size-adjust:100%; }
                         }).filter(y => y > inicio + alturaFatia * .55 && y < fim && fim-y < 95);
                         if (titulos.length) fim = Math.min(fim, ...titulos);
                     }
+                    // v25.61.12: manter a tabela de frequência e sua observação
+                    // juntas. Se o conjunto ultrapassar a página, iniciar a seção
+                    // na página seguinte (somente quando couber numa página inteira).
+                    const avisoFrequencia = copia.querySelector('#pdf-frequencia-individual-aviso');
+                    const secaoFrequencia = avisoFrequencia && avisoFrequencia.closest('div.space-y-3');
+                    if (secaoFrequencia && fim < canvas.height) {
+                        const rs = secaoFrequencia.getBoundingClientRect();
+                        const topoSecao = Math.max(0, Math.floor((rs.top - rectBase.top) * fatorY) - 4);
+                        const baseSecao = Math.min(canvas.height, Math.ceil((rs.bottom - rectBase.top) * fatorY) + 4);
+                        if (baseSecao - topoSecao < alturaFatia &&
+                            topoSecao > inicio + 8 && topoSecao < fim && baseSecao > fim) {
+                            fim = topoSecao;
+                        }
+                    }
                     // v25.61.11: a observação de frequência deve ficar inteira
                     // na mesma folha. Como o PDF é montado por fatias de imagem,
                     // CSS break-inside sozinho não impede um corte no parágrafo.
