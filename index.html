@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.59 Relatório A4 e Situação Colorida</title>
+    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.60 Relatório A4 Paginação</title>
     <!-- Supabase JS: autenticação e banco de dados online -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Tailwind CSS -->
@@ -403,6 +403,14 @@ html { -webkit-text-size-adjust:100%; }
 #pdf-container.abaete-v2540-export h4{break-after:avoid!important;page-break-after:avoid!important;}
 #pdf-container.abaete-v2540-export table{border-collapse:collapse!important;}
 #pdf-container.abaete-v2540-export .abaete-pdf-assinaturas{break-inside:avoid!important;page-break-inside:avoid!important;}
+
+/* v25.60 — Paginação do relatório A4: apenas cópia de exportação. */
+#pdf-container.abaete-v2540-export { box-sizing:border-box!important; }
+#pdf-container.abaete-v2540-export h4 { break-after:avoid!important;page-break-after:avoid!important; }
+#pdf-container.abaete-v2540-export thead {display:table-header-group!important;}
+#pdf-container.abaete-v2540-export tr {break-inside:avoid!important;page-break-inside:avoid!important;}
+#pdf-container.abaete-v2540-export #pdf-lista-diarios > div {break-inside:avoid!important;page-break-inside:avoid!important;}
+#pdf-container.abaete-v2540-export .abaete-pdf-assinaturas {break-inside:avoid!important;page-break-inside:avoid!important;}
 </style>
 </head>
 <body class="bg-gray-100 font-sans text-gray-800 min-h-screen flex flex-col">
@@ -3639,9 +3647,9 @@ html { -webkit-text-size-adjust:100%; }
                     margin: 10,
                     filename: `Relatorio_Capoeira_Abaete_${new Date().toISOString().substring(0,10)}.pdf`,
                     image: {type:'jpeg',quality:0.98},
-                    html2canvas: {scale: 1.5, scrollX: 0, scrollY: 0, backgroundColor:'#ffffff', useCORS:true},
+                    html2canvas: {scale: 1.25, scrollX: 0, scrollY: 0, backgroundColor:'#ffffff', useCORS:true, logging:false},
                     jsPDF: {unit:'mm',format:'a4',orientation:'landscape'},
-                    pagebreak: {mode:['css'],avoid:['tr','.abaete-pdf-assinaturas']}
+                    pagebreak: {mode:['css','legacy'],avoid:['tr','#pdf-lista-diarios > div','.abaete-pdf-assinaturas']}
                 }).from(copia).save();
             } catch (erro) {
                 console.error('Erro ao exportar relatório:', erro);
