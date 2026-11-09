@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.61.1 Relatório A4 Paginação</title>
+    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.61.5 Relatório A4 Paginação Inteligente</title>
     <!-- Supabase JS: autenticação e banco de dados online -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Tailwind CSS -->
@@ -3667,10 +3667,63 @@ html { -webkit-text-size-adjust:100%; }
                 const altura = pdf.internal.pageSize.getHeight() - margem * 2;
                 const pixelsPorMm = canvas.width / largura;
                 const alturaFatia = Math.floor(altura * pixelsPorMm);
+                // v25.61.5: identificar limites reais das linhas e blocos
+                // antes de cortar o canvas. Evita dividir uma linha entre folhas.
+                const rectBase = copia.getBoundingClientRect();
+                const fatorY = canvas.height / Math.max(1, copia.scrollHeight);
+                const limites = new Set();
+                const seletorBlocos = [
+                    '#pdf-tabela-atletas tr',
+                    '#pdf-frequencia-individual tr',
+                    '#pdf-lista-diarios > div',
+                    '#pdf-parecer-texto',
+                    '.abaete-pdf-assinaturas'
+                ].join(',');
+                copia.querySelectorAll(seletorBlocos).forEach(el => {
+                    const r = el.getBoundingClientRect();
+                    const topo = Math.round((r.top - rectBase.top) * fatorY);
+                    const fim = Math.round((r.bottom - rectBase.top) * fatorY);
+                    if (topo > 0 && topo < canvas.height) limites.add(topo);
+                    if (fim > 0 && fim < canvas.height) limites.add(fim);
+                });
+                // Cabeçalhos acompanham pelo menos a primeira linha da seção.
+                copia.querySelectorAll('h4').forEach(el => {
+                    const r = el.getBoundingClientRect();
+                    const topo = Math.round((r.top - rectBase.top) * fatorY);
+                    if (topo > 0 && topo < canvas.height) limites.add(topo);
+                });
+                const pontos = [...limites].sort((a,b) => a-b);
                 let inicio = 0;
                 let pagina = 0;
                 while (inicio < canvas.height) {
-                    const h = Math.min(alturaFatia, canvas.height - inicio);
+                    let fim = Math.min(inicio + alturaFatia, canvas.height);
+                    if (fim < canvas.height) {
+                        // Só antecipar a quebra se o bloco restante couber na
+                        // próxima folha e a página atual não ficar quase vazia.
+                        const candidatos = pontos.filter(y => y > inicio + alturaFatia * 0.55 && y <= fim - 3);
+                        if (candidatos.length) {
+                            const ultimo = candidatos[candidatos.length - 1];
+                            // Evitar que uma linha ou assinatura seja cortada.
+                            const cruzados = [...copia.querySelectorAll(seletorBlocos)].some(el => {
+                                const r = el.getBoundingClientRect();
+                                const t = Math.round((r.top - rectBase.top) * fatorY);
+                                const b = Math.round((r.bottom - rectBase.top) * fatorY);
+                                return t < fim - 2 && b > fim + 2 && t >= inicio;
+                            });
+                            if (cruzados) {
+                                const antes = candidatos.filter(y => y <= ultimo);
+                                // Preferir o começo do bloco que atravessaria a folha.
+                                const cruzando = [...copia.querySelectorAll(seletorBlocos)].map(el => {
+                                    const r = el.getBoundingClientRect();
+                                    return {t:Math.round((r.top-rectBase.top)*fatorY),b:Math.round((r.bottom-rectBase.top)*fatorY)};
+                                }).filter(r => r.t < fim-2 && r.b > fim+2 && r.t > inicio+alturaFatia*.55);
+                                if (cruzando.length) fim = Math.min(...cruzando.map(r=>r.t));
+                                else fim = antes[antes.length-1];
+                            }
+                        }
+                    }
+                    if (fim <= inicio) fim = Math.min(inicio + alturaFatia, canvas.height);
+                    const h = fim - inicio;
                     const fatia = document.createElement('canvas');
                     fatia.width = canvas.width;
                     fatia.height = h;
@@ -3680,7 +3733,7 @@ html { -webkit-text-size-adjust:100%; }
                     ctx.drawImage(canvas, 0,inicio,canvas.width,h,0,0,canvas.width,h);
                     if (pagina++) pdf.addPage();
                     pdf.addImage(fatia.toDataURL('image/jpeg',0.95),'JPEG',margem,margem,largura,h/pixelsPorMm);
-                    inicio += h;
+                    inicio = fim;
                 }
                 pdf.save(`Relatorio_Capoeira_Abaete_${new Date().toISOString().substring(0,10)}.pdf`);
             } catch (erro) {
