@@ -1929,7 +1929,8 @@ html { -webkit-text-size-adjust:100%; }
               const resultadoRel=document.createElement('div');resultadoRel.className='text-sm space-y-3';
               consultarRel.addEventListener('click',()=>abaeteRelatorioFrequenciaProfessor(id,inicio.value,fim.value,resultadoRel,consultarRel));
               relatorio.append(tituloRel,orientacao,filtros,resultadoRel);formulario.append(relatorio);
-              card.append(titulo,descricao,atalhos,botao,abrirCadastro,cadastroProf,resultado,formulario);lista.append(card);
+              // v25.61.14: controles originais permanecem em memória para os atalhos, mas não são exibidos em duplicidade.
+              card.append(titulo,descricao,atalhos,cadastroProf,resultado,formulario);lista.append(card);
             }
           }
         }
