@@ -425,6 +425,24 @@ html { -webkit-text-size-adjust:100%; }
   break-before:auto!important;page-break-before:auto!important;
 }
 </style>
+
+<style id="abaete-v256112-painel-professor-visual">
+/* v25.61.12: somente apresentação do painel do professor; nenhuma mudança de lógica ou dados. */
+#abaete-professor-painel {max-width:100%;}
+#abaete-professor-status {display:block;margin:10px 0 16px;padding:11px 14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:11px;color:#166534;font-weight:700;line-height:1.45;}
+#abaete-professor-turmas {display:grid;gap:20px;min-width:0;}
+#abaete-professor-turmas > div {border:1px solid #e2e8f0!important;border-radius:18px!important;background:#fff!important;padding:clamp(14px,2.5vw,24px)!important;box-shadow:0 3px 14px rgba(15,23,42,.055);min-width:0;}
+#abaete-professor-turmas > div > h3 {font-size:clamp(17px,2.2vw,21px);line-height:1.35;color:#7f1d1d!important;overflow-wrap:anywhere;}
+#abaete-professor-turmas > div > p {line-height:1.5;overflow-wrap:anywhere;}
+#abaete-professor-turmas .abaete-v2538-atalhos {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:18px 0;}
+#abaete-professor-turmas .abaete-v2538-atalhos button {display:flex;align-items:center;justify-content:center;min-width:0;min-height:54px;margin:0!important;padding:12px 10px!important;border:1px solid #fecaca;border-radius:12px;background:#fff7f7;color:#7f1d1d;font-size:14px;font-weight:750;line-height:1.35;white-space:normal;overflow-wrap:anywhere;text-align:center;cursor:pointer;}
+#abaete-professor-turmas .abaete-v2538-atalhos button:hover {background:#fee2e2;border-color:#fca5a5;}
+#abaete-professor-turmas .abaete-v2538-atalhos button:focus-visible {outline:3px solid #f59e0b;outline-offset:2px;}
+#abaete-professor-turmas .abaete-diario-v2541 {margin-top:20px!important;}
+#abaete-professor-turmas button {touch-action:manipulation;}
+@media(min-width:800px){#abaete-professor-turmas .abaete-v2538-atalhos{grid-template-columns:repeat(4,minmax(0,1fr));}}
+@media(max-width:480px){#abaete-professor-turmas > div{padding:14px!important;}#abaete-professor-turmas .abaete-v2538-atalhos{gap:8px;}#abaete-professor-turmas .abaete-v2538-atalhos button{font-size:13px;min-height:58px;padding:10px 7px!important;}}
+</style>
 </head>
 <body class="bg-gray-100 font-sans text-gray-800 min-h-screen flex flex-col">
 
