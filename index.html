@@ -3649,17 +3649,20 @@ html { -webkit-text-size-adjust:100%; }
                 badge.style.setProperty('-webkit-print-color-adjust', 'exact', 'important');
                 badge.style.setProperty('print-color-adjust', 'exact', 'important');
             });
-            copia.style.cssText = 'position:relative!important;left:auto!important;top:auto!important;z-index:1!important;display:block!important;visibility:visible!important;opacity:1!important;margin:0!important;background:#fff!important;';
+            copia.style.cssText = 'position:relative!important;left:auto!important;top:auto!important;z-index:1!important;display:block!important;visibility:visible!important;opacity:1!important;margin:0!important;background:#fff!important;box-sizing:border-box!important;width:1040px!important;min-width:1040px!important;max-width:1040px!important;overflow:visible!important;';
             // v25.61.3: modo legacy evita a folha vazia causada por CSS/avoid.
             // Alteração restrita ao PDF, sem tocar nos dados ou cálculos.
             suporte.appendChild(copia);
             document.body.appendChild(suporte);
             try {
                 await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+                // Capturar a largura inteira, mesmo quando a janela do navegador é estreita.
+                const larguraCaptura = Math.ceil(Math.max(copia.scrollWidth, copia.getBoundingClientRect().width));
+                const alturaCaptura = Math.ceil(copia.scrollHeight);
                 // v25.61.4: paginacao por fatias de canvas, sem quebras CSS
                 // que produziam uma segunda pagina quase vazia.
                 const canvas = await html2pdf().set({
-                    html2canvas: {scale: 1.5, scrollX: 0, scrollY: 0, backgroundColor:'#ffffff', useCORS:true, logging:false}
+                    html2canvas: {scale: 1.5, width: larguraCaptura, height: alturaCaptura, windowWidth: Math.max(1300, larguraCaptura + 80), scrollX: 0, scrollY: 0, backgroundColor:'#ffffff', useCORS:true, logging:false}
                 }).from(copia).toCanvas().get('canvas');
                 // A versao anterior dependia de window.jspdf, que nem sempre
                 // era exposto pelo pacote html2pdf. Carregamento explicito acima.
@@ -3698,7 +3701,7 @@ html { -webkit-text-size-adjust:100%; }
                 // v25.61.5: identificar limites reais das linhas e blocos
                 // antes de cortar o canvas. Evita dividir uma linha entre folhas.
                 const rectBase = copia.getBoundingClientRect();
-                const fatorY = canvas.height / Math.max(1, copia.scrollHeight);
+                const fatorY = canvas.height / Math.max(1, alturaCaptura);
                 const limites = new Set();
                 const seletorBlocos = [
                     '#pdf-tabela-atletas tr',
@@ -3723,7 +3726,7 @@ html { -webkit-text-size-adjust:100%; }
                 const pontos = [...limites].sort((a,b) => a-b);
                 let inicio = 0;
                 let pagina = 0;
-                while (inicio < canvas.height) {
+                while (inicio < canvas.height - 2) {
                     let fim = Math.min(inicio + alturaFatia, canvas.height);
                     if (fim < canvas.height) {
                         // Só antecipar a quebra se o bloco restante couber na
