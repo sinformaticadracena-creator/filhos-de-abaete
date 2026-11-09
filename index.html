@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.61.5 Relatório A4 Paginação Inteligente</title>
+    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.61.7 Correção Carregamento PDF</title>
     <!-- Supabase JS: autenticação e banco de dados online -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Tailwind CSS -->
@@ -3663,8 +3663,31 @@ html { -webkit-text-size-adjust:100%; }
                 }).from(copia).toCanvas().get('canvas');
                 // A versao anterior dependia de window.jspdf, que nem sempre
                 // era exposto pelo pacote html2pdf. Carregamento explicito acima.
-                const JsPDF = window.jspdf?.jsPDF || window.jsPDF;
-                if (!JsPDF) throw new Error('Biblioteca jsPDF nao carregou. Verifique conexao/CDN.');
+                // v25.61.7: recuperar jsPDF caso o CDN inicial tenha falhado.
+                // html2pdf inclui jsPDF internamente, mas nao garante window.jspdf.
+                let JsPDF = window.jspdf?.jsPDF || window.jsPDF;
+                if (!JsPDF) {
+                    const fontes = [
+                        'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js',
+                        'https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js'
+                    ];
+                    for (const url of fontes) {
+                        try {
+                            await new Promise((resolve, reject) => {
+                                const script = document.createElement('script');
+                                script.src = url;
+                                script.onload = resolve;
+                                script.onerror = () => reject(new Error('Falha ao carregar ' + url));
+                                document.head.appendChild(script);
+                            });
+                            JsPDF = window.jspdf?.jsPDF || window.jsPDF;
+                            if (JsPDF) break;
+                        } catch (erroCDN) {
+                            console.warn('Tentativa alternativa de jsPDF:', erroCDN);
+                        }
+                    }
+                }
+                if (!JsPDF) throw new Error('Biblioteca jsPDF indisponivel. Verifique a conexao e bloqueios de CDN no navegador');
                 if (!canvas || !canvas.width || !canvas.height) throw new Error('Canvas do relatorio vazio');
                 const pdf = new JsPDF({unit:'mm',format:'a4',orientation:'landscape'});
                 const margem = 10;
