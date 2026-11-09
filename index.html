@@ -16,6 +16,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <!-- html2pdf.js para exportar relatórios em PDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <!-- jsPDF explicito para exportacao A4 por fatias -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <!-- Google Fonts Inter -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 
@@ -3659,8 +3661,11 @@ html { -webkit-text-size-adjust:100%; }
                 const canvas = await html2pdf().set({
                     html2canvas: {scale: 1.5, scrollX: 0, scrollY: 0, backgroundColor:'#ffffff', useCORS:true, logging:false}
                 }).from(copia).toCanvas().get('canvas');
-                const JsPDF = window.jspdf && window.jspdf.jsPDF;
-                if (!JsPDF) throw new Error('Biblioteca jsPDF indisponivel');
+                // A versao anterior dependia de window.jspdf, que nem sempre
+                // era exposto pelo pacote html2pdf. Carregamento explicito acima.
+                const JsPDF = window.jspdf?.jsPDF || window.jsPDF;
+                if (!JsPDF) throw new Error('Biblioteca jsPDF nao carregou. Verifique conexao/CDN.');
+                if (!canvas || !canvas.width || !canvas.height) throw new Error('Canvas do relatorio vazio');
                 const pdf = new JsPDF({unit:'mm',format:'a4',orientation:'landscape'});
                 const margem = 10;
                 const largura = pdf.internal.pageSize.getWidth() - margem * 2;
@@ -3738,7 +3743,7 @@ html { -webkit-text-size-adjust:100%; }
                 pdf.save(`Relatorio_Capoeira_Abaete_${new Date().toISOString().substring(0,10)}.pdf`);
             } catch (erro) {
                 console.error('Erro ao exportar relatório:', erro);
-                alert('Não foi possível gerar o PDF. Atualize a página e tente novamente.');
+                alert('Não foi possível gerar o PDF: ' + (erro?.message || 'erro desconhecido') + '.');
             } finally {
                 suporte.remove();
             }
