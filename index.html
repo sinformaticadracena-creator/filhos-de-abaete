@@ -785,6 +785,16 @@ html { -webkit-text-size-adjust:100%; }
 <div id="solicitacoes-professores-status" class="text-sm text-gray-600"></div>
 <div id="lista-solicitacoes-professores" class="space-y-3"></div>
 </div>
+<div id="abaete-gestao-acessos" class="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 space-y-3">
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <div><h3 class="text-lg font-bold text-gray-800">Professores autorizados</h3>
+    <p class="text-sm text-gray-600">Consulte aprovações e vínculos reais de acesso. Não altera os responsáveis informados nas turmas.</p></div>
+    <button type="button" onclick="abaeteListarAcessosProfessores()" class="px-4 py-2 bg-gray-800 text-white rounded-lg">Atualizar acessos</button>
+  </div>
+  <p id="abaete-acessos-status" class="text-sm text-gray-600" role="status"></p>
+  <div id="abaete-acessos-lista" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+  <p class="text-xs text-gray-500">Consulta somente leitura. Alterações de permissões exigem uma operação administrativa validada pelo servidor.</p>
+</div>
             <!-- GRID DE TURMAS -->
             <div id="grid-turmas" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <!-- Preenchido via JS -->
@@ -2520,6 +2530,63 @@ html { -webkit-text-size-adjust:100%; }
           await carregarSolicitacoesProfessores();
         }
 
+        // v25.61.15 — visão administrativa somente leitura; não altera Supabase, RLS ou autenticação.
+        async function abaeteListarAcessosProfessores(){
+          const status=document.getElementById('abaete-acessos-status');
+          const lista=document.getElementById('abaete-acessos-lista');
+          if(!status||!lista)return;
+          lista.replaceChildren();
+          if(papelOnline!=='administrador'||!supabaseClient||!usuarioOnline){
+            status.textContent='Acesso exclusivo do administrador autenticado.';return;
+          }
+          status.textContent='Consultando acessos autorizados...';
+          try{
+            const [solResult,vincResult]=await Promise.all([
+              supabaseClient.from('solicitacoes_professores').select('usuario_id,status').eq('status','aprovado'),
+              supabaseClient.from('professores_turmas').select('professor_id,turma_id')
+            ]);
+            if(solResult.error)throw solResult.error;
+            if(vincResult.error)throw vincResult.error;
+            const aprovados=[...new Set((solResult.data||[]).map(x=>String(x.usuario_id||'')).filter(Boolean))];
+            const vinculos=vincResult.data||[];
+            if(!aprovados.length){status.textContent='Nenhum professor aprovado encontrado nesta consulta.';return;}
+            const perfResult=await supabaseClient.from('perfis').select('id,nome').in('id',aprovados);
+            if(perfResult.error)throw perfResult.error;
+            const nomes=new Map((perfResult.data||[]).map(x=>[String(x.id),String(x.nome||'').trim()]));
+            const nomesTurmas=new Map(turmas.map(t=>[String(t.id),String(t.nome||t.id)]));
+            for(const id of aprovados){
+              const card=document.createElement('div');
+              card.className='border border-gray-200 rounded-xl p-4 bg-gray-50 space-y-2';
+              const titulo=document.createElement('h4');
+              titulo.className='font-bold text-gray-900';
+              titulo.textContent=nomes.get(id)||'Professor sem nome disponível';
+              const identificador=document.createElement('p');
+              identificador.className='text-xs text-gray-500 break-all';
+              identificador.textContent='ID de acesso: '+id;
+              const turmasIds=[...new Set(vinculos.filter(x=>String(x.professor_id)===id).map(x=>String(x.turma_id)))];
+              const resumo=document.createElement('p');
+              resumo.className='text-sm font-semibold text-green-800';
+              resumo.textContent='Aprovado • '+turmasIds.length+' turma(s) vinculada(s)';
+              const detalhes=document.createElement('ul');
+              detalhes.className='text-sm text-gray-700 list-disc pl-5 space-y-1';
+              if(!turmasIds.length){
+                const li=document.createElement('li');li.textContent='Sem turma vinculada';detalhes.append(li);
+              }
+              for(const turmaId of turmasIds){
+                const li=document.createElement('li');
+                li.textContent=nomesTurmas.get(turmaId)||('Turma ID '+turmaId+' (não encontrada no cadastro local)');
+                detalhes.append(li);
+              }
+              card.append(titulo,resumo,detalhes,identificador);
+              lista.append(card);
+            }
+            status.textContent=aprovados.length+' professor(es) aprovado(s) encontrado(s).';
+          }catch(e){
+            console.warn('Consulta administrativa de acessos:',e);
+            status.textContent='Não foi possível consultar todos os acessos: '+(e?.message||String(e))+'. Confira as permissões de leitura do administrador no Supabase.';
+          }
+        }
+
         // CONTROLADOR DE ABAS
         function trocarAba(abaId) {
             const abas = ['dashboard', 'atletas', 'carteirinhas', 'turmas', 'chamada', 'diario', 'relatorios', 'financeiro', 'documentos', 'evolucao', 'backup', 'cadastros-online'];
@@ -2539,7 +2606,7 @@ html { -webkit-text-size-adjust:100%; }
             if (abaId === 'evolucao') { preencherAtletasEvolucao(); renderEvolucao(); }
             if (abaId === 'backup') atualizarStatusBackup();
             if (abaId === 'cadastros-online') carregarCadastrosOnline();
-            if (abaId === 'turmas' && papelOnline==='administrador') carregarSolicitacoesProfessores();
+            if (abaId === 'turmas' && papelOnline==='administrador') { carregarSolicitacoesProfessores(); abaeteListarAcessosProfessores(); }
         }
 
         // PREENCHIMENTO DE SELECTS DE TURMA
