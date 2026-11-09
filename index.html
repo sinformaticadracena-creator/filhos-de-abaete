@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.61.7 Correção Carregamento PDF</title>
+    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.61.9 Correção Enquadramento PDF</title>
     <!-- Supabase JS: autenticação e banco de dados online -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Tailwind CSS -->
@@ -16,6 +16,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <!-- html2pdf.js para exportar relatórios em PDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <!-- html2canvas independente: captura fiel sem redimensionamento interno do html2pdf -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <!-- jsPDF explicito para exportacao A4 por fatias -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <!-- Google Fonts Inter -->
@@ -3661,9 +3663,21 @@ html { -webkit-text-size-adjust:100%; }
                 const alturaCaptura = Math.ceil(copia.scrollHeight);
                 // v25.61.4: paginacao por fatias de canvas, sem quebras CSS
                 // que produziam uma segunda pagina quase vazia.
-                const canvas = await html2pdf().set({
-                    html2canvas: {scale: 1.5, width: larguraCaptura, height: alturaCaptura, windowWidth: Math.max(1300, larguraCaptura + 80), scrollX: 0, scrollY: 0, backgroundColor:'#ffffff', useCORS:true, logging:false}
-                }).from(copia).toCanvas().get('canvas');
+                // Captura direta: html2pdf redimensionava o container para a pagina,
+                // cortando colunas antes mesmo da insercao no documento A4.
+                if (typeof window.html2canvas !== 'function') {
+                    throw new Error('Biblioteca html2canvas indisponivel. Verifique a conexao e recarregue a pagina');
+                }
+                const canvas = await window.html2canvas(copia, {
+                    scale: 1.5,
+                    width: larguraCaptura,
+                    height: alturaCaptura,
+                    windowWidth: Math.max(1300, larguraCaptura + 80),
+                    scrollX: 0, scrollY: 0,
+                    backgroundColor: '#ffffff',
+                    useCORS: true,
+                    logging: false
+                });
                 // A versao anterior dependia de window.jspdf, que nem sempre
                 // era exposto pelo pacote html2pdf. Carregamento explicito acima.
                 // v25.61.7: recuperar jsPDF caso o CDN inicial tenha falhado.
@@ -3729,29 +3743,25 @@ html { -webkit-text-size-adjust:100%; }
                 while (inicio < canvas.height - 2) {
                     let fim = Math.min(inicio + alturaFatia, canvas.height);
                     if (fim < canvas.height) {
-                        // Só antecipar a quebra se o bloco restante couber na
-                        // próxima folha e a página atual não ficar quase vazia.
-                        const candidatos = pontos.filter(y => y > inicio + alturaFatia * 0.55 && y <= fim - 3);
-                        if (candidatos.length) {
-                            const ultimo = candidatos[candidatos.length - 1];
-                            // Evitar que uma linha ou assinatura seja cortada.
-                            const cruzados = [...copia.querySelectorAll(seletorBlocos)].some(el => {
-                                const r = el.getBoundingClientRect();
-                                const t = Math.round((r.top - rectBase.top) * fatorY);
-                                const b = Math.round((r.bottom - rectBase.top) * fatorY);
-                                return t < fim - 2 && b > fim + 2 && t >= inicio;
-                            });
-                            if (cruzados) {
-                                const antes = candidatos.filter(y => y <= ultimo);
-                                // Preferir o começo do bloco que atravessaria a folha.
-                                const cruzando = [...copia.querySelectorAll(seletorBlocos)].map(el => {
-                                    const r = el.getBoundingClientRect();
-                                    return {t:Math.round((r.top-rectBase.top)*fatorY),b:Math.round((r.bottom-rectBase.top)*fatorY)};
-                                }).filter(r => r.t < fim-2 && r.b > fim+2 && r.t > inicio+alturaFatia*.55);
-                                if (cruzando.length) fim = Math.min(...cruzando.map(r=>r.t));
-                                else fim = antes[antes.length-1];
-                            }
+                        // Evitar cortar tabelas, linhas, blocos de aula e assinaturas.
+                        // Um bloco maior que a pagina ainda pode ser dividido.
+                        const cruzando = [...copia.querySelectorAll(seletorBlocos)].map(el => {
+                            const r = el.getBoundingClientRect();
+                            return {
+                                t: Math.round((r.top - rectBase.top) * fatorY),
+                                b: Math.round((r.bottom - rectBase.top) * fatorY)
+                            };
+                        }).filter(r => r.t < fim - 2 && r.b > fim + 2 && r.t > inicio + 8 && (r.b-r.t) < alturaFatia);
+                        if (cruzando.length) {
+                            const quebra = Math.min(...cruzando.map(r => r.t));
+                            if (quebra > inicio + alturaFatia * 0.35) fim = quebra;
                         }
+                        // Nunca deixar titulo isolado no rodape da pagina.
+                        const titulos = [...copia.querySelectorAll('h4')].map(el => {
+                            const r=el.getBoundingClientRect();
+                            return Math.round((r.top-rectBase.top)*fatorY);
+                        }).filter(y => y > inicio + alturaFatia * .55 && y < fim && fim-y < 95);
+                        if (titulos.length) fim = Math.min(fim, ...titulos);
                     }
                     if (fim <= inicio) fim = Math.min(inicio + alturaFatia, canvas.height);
                     const h = fim - inicio;
