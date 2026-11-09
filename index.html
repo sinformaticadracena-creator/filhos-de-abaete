@@ -3654,6 +3654,8 @@ html { -webkit-text-size-adjust:100%; }
             copia.style.cssText = 'position:relative!important;left:auto!important;top:auto!important;z-index:1!important;display:block!important;visibility:visible!important;opacity:1!important;margin:0!important;background:#fff!important;box-sizing:border-box!important;width:1040px!important;min-width:1040px!important;max-width:1040px!important;overflow:visible!important;';
             // v25.61.3: modo legacy evita a folha vazia causada por CSS/avoid.
             // Alteração restrita ao PDF, sem tocar nos dados ou cálculos.
+            // v25.61.10: respiro após assinaturas para impedir corte no canvas.
+            copia.style.setProperty('padding-bottom', '48px', 'important');
             suporte.appendChild(copia);
             document.body.appendChild(suporte);
             try {
@@ -3709,7 +3711,8 @@ html { -webkit-text-size-adjust:100%; }
                 const pdf = new JsPDF({unit:'mm',format:'a4',orientation:'landscape'});
                 const margem = 10;
                 const largura = pdf.internal.pageSize.getWidth() - margem * 2;
-                const altura = pdf.internal.pageSize.getHeight() - margem * 2;
+                // Margem inferior adicional para manter texto e assinaturas longe da borda.
+                const altura = pdf.internal.pageSize.getHeight() - margem * 2 - 5;
                 const pixelsPorMm = canvas.width / largura;
                 const alturaFatia = Math.floor(altura * pixelsPorMm);
                 // v25.61.5: identificar limites reais das linhas e blocos
@@ -3722,6 +3725,7 @@ html { -webkit-text-size-adjust:100%; }
                     '#pdf-frequencia-individual tr',
                     '#pdf-lista-diarios > div',
                     '#pdf-parecer-texto',
+                    '#pdf-frequencia-individual-aviso',
                     '.abaete-pdf-assinaturas'
                 ].join(',');
                 copia.querySelectorAll(seletorBlocos).forEach(el => {
@@ -3737,6 +3741,8 @@ html { -webkit-text-size-adjust:100%; }
                     const topo = Math.round((r.top - rectBase.top) * fatorY);
                     if (topo > 0 && topo < canvas.height) limites.add(topo);
                 });
+                // A observação da frequência é um único parágrafo: não dividir no meio.
+                // As assinaturas também devem permanecer juntas na mesma folha.
                 const pontos = [...limites].sort((a,b) => a-b);
                 let inicio = 0;
                 let pagina = 0;
@@ -3762,6 +3768,18 @@ html { -webkit-text-size-adjust:100%; }
                             return Math.round((r.top-rectBase.top)*fatorY);
                         }).filter(y => y > inicio + alturaFatia * .55 && y < fim && fim-y < 95);
                         if (titulos.length) fim = Math.min(fim, ...titulos);
+                    }
+                    // Proteção extra: caso a observação/assinaturas atravessem o limite,
+                    // iniciar o bloco inteiro na próxima página.
+                    for (const seletor of ['#pdf-frequencia-individual-aviso', '.abaete-pdf-assinaturas']) {
+                        const el = copia.querySelector(seletor);
+                        if (!el) continue;
+                        const r = el.getBoundingClientRect();
+                        const topo = Math.round((r.top - rectBase.top) * fatorY);
+                        const base = Math.round((r.bottom - rectBase.top) * fatorY);
+                        if (topo > inicio + 4 && topo < fim && base > fim && base - topo < alturaFatia) {
+                            fim = topo;
+                        }
                     }
                     if (fim <= inicio) fim = Math.min(inicio + alturaFatia, canvas.height);
                     const h = fim - inicio;
