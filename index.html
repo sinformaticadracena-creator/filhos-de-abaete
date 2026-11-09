@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.58 Situação Individual</title>
+    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.59 Relatório A4 e Situação Colorida</title>
     <!-- Supabase JS: autenticação e banco de dados online -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Tailwind CSS -->
@@ -391,6 +391,18 @@ html { -webkit-text-size-adjust:100%; }
   border-color: #e5e7eb !important;
   color: #6b7280 !important;
 }
+
+/* v25.59 — indicadores individuais e exportação A4. */
+.abaete-situacao{display:inline-block;border-radius:999px;padding:4px 9px;font-size:11px;font-weight:800;line-height:1.3;white-space:nowrap;border:1px solid transparent;}
+.abaete-situacao-ok{color:#166534;background:#dcfce7;border-color:#86efac;}
+.abaete-situacao-falta{color:#991b1b;background:#fee2e2;border-color:#fca5a5;}
+.abaete-situacao-justificada{color:#92400e;background:#fef3c7;border-color:#fcd34d;}
+.abaete-situacao-sem-registro{color:#475569;background:#e2e8f0;border-color:#cbd5e1;}
+#pdf-container.abaete-v2540-export .abaete-situacao{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}
+#pdf-container.abaete-v2540-export #pdf-frequencia-individual tr{break-inside:avoid!important;page-break-inside:avoid!important;}
+#pdf-container.abaete-v2540-export h4{break-after:avoid!important;page-break-after:avoid!important;}
+#pdf-container.abaete-v2540-export table{border-collapse:collapse!important;}
+#pdf-container.abaete-v2540-export .abaete-pdf-assinaturas{break-inside:avoid!important;page-break-inside:avoid!important;}
 </style>
 </head>
 <body class="bg-gray-100 font-sans text-gray-800 min-h-screen flex flex-col">
@@ -3514,7 +3526,17 @@ html { -webkit-text-size-adjust:100%; }
                 const percentual = marcadas ? Math.round(100*c.presente/marcadas)+'%' : '—';
                 const situacao = marcadas ? (c.ausente ? 'Com faltas' : c.justificado ? 'Com justificativa' : 'Sem faltas') : 'Sem registros';
                 const tr=document.createElement('tr'); tr.className='border-b border-gray-200';
-                [a.nome,c.presente,c.ausente,c.justificado,semRegistro,percentual,situacao].forEach(v => {const td=document.createElement('td');td.className='p-2';td.textContent=String(v);tr.appendChild(td);});
+                [a.nome,c.presente,c.ausente,c.justificado,semRegistro,percentual,situacao].forEach((v,i) => {
+                    const td=document.createElement('td');td.className='p-2';
+                    if(i===6){
+                        const indicador=document.createElement('span');
+                        const classe = situacao==='Com faltas' ? 'abaete-situacao-falta' : situacao==='Sem faltas' ? 'abaete-situacao-ok' : situacao==='Com justificativa' ? 'abaete-situacao-justificada' : 'abaete-situacao-sem-registro';
+                        indicador.className='abaete-situacao '+classe;
+                        indicador.textContent=situacao;
+                        td.appendChild(indicador);
+                    }else{td.textContent=String(v);}
+                    tr.appendChild(td);
+                });
                 tbodyIndividual.appendChild(tr);
             });
             avisoIndividual.textContent = (semCorrespondencia ? semCorrespondencia+' marcação(ões) não puderam ser associadas a um atleta cadastrado. ' : '') + (erroConsultaDiarios ? 'Consulta online incompleta; confira as permissões e tente novamente.' : 'Sem registro = aulas da turma no período sem marcação identificada para o aluno; não são contabilizadas como faltas. A contagem considera todas as aulas da turma no mês, inclusive anteriores à eventual matrícula do aluno. Percentuais calculados apenas sobre marcações identificadas por atleta.');
@@ -3619,7 +3641,7 @@ html { -webkit-text-size-adjust:100%; }
                     image: {type:'jpeg',quality:0.98},
                     html2canvas: {scale: 1.5, scrollX: 0, scrollY: 0, backgroundColor:'#ffffff', useCORS:true},
                     jsPDF: {unit:'mm',format:'a4',orientation:'landscape'},
-                    pagebreak: {mode:['css','legacy'],avoid:['tr','#pdf-lista-diarios > div','#pdf-parecer-texto','.abaete-pdf-assinaturas']}
+                    pagebreak: {mode:['css'],avoid:['tr','.abaete-pdf-assinaturas']}
                 }).from(copia).save();
             } catch (erro) {
                 console.error('Erro ao exportar relatório:', erro);
