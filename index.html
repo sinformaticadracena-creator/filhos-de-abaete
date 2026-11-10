@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.61.13 Painel do Professor — lista e graduações</title>
+    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.61.17 Painel do Professor — nomes das turmas</title>
     <!-- Supabase JS: autenticação e banco de dados online -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Tailwind CSS -->
@@ -1728,7 +1728,14 @@ html { -webkit-text-size-adjust:100%; }
               card.className='p-4 border rounded-xl bg-gray-50';
               const titulo=document.createElement('h3');
               titulo.className='font-bold text-gray-800';
-              titulo.textContent=id==='1793665545659'?'Turma Teste — Renata':'Turma autorizada — ID: '+id;
+              // v25.61.17: resolver o nome pelo cadastro local quando disponível;
+              // preservar os nomes confirmados para professor sem acesso ao app_state.
+              const turmaCadastrada=Array.isArray(turmas)?turmas.find(t=>String(t.id)===String(id)):null;
+              const nomesTurmasConfirmados={
+                '1793665545659':'Turma Teste — Renata',
+                '1793067271406':'Graduada Joice (Turma Zanata)'
+              };
+              titulo.textContent=(turmaCadastrada && (turmaCadastrada.nome||turmaCadastrada.name)) || nomesTurmasConfirmados[id] || 'Turma autorizada — ID: '+id;
               const descricao=document.createElement('p');
               descricao.className='text-sm text-gray-600 mt-1';
               descricao.textContent='Consulta dos alunos e chamada da turma autorizada.';
