@@ -2577,7 +2577,11 @@ html { -webkit-text-size-adjust:100%; }
                 li.textContent=nomesTurmas.get(turmaId)||('Turma ID '+turmaId+' (não encontrada no cadastro local)');
                 detalhes.append(li);
               }
-              card.append(titulo,resumo,detalhes,identificador);
+              const editar=document.createElement('button');
+              editar.type='button'; editar.className='mt-2 px-3 py-2 rounded-lg bg-blue-700 text-white font-semibold text-sm';
+              editar.textContent='Gerenciar turmas';
+              editar.onclick=()=>abaeteEditarVinculos(id,nomes.get(id)||'Professor',turmasIds);
+              card.append(titulo,resumo,detalhes,identificador,editar);
               lista.append(card);
             }
             status.textContent=aprovados.length+' professor(es) aprovado(s) encontrado(s).';
@@ -2585,6 +2589,46 @@ html { -webkit-text-size-adjust:100%; }
             console.warn('Consulta administrativa de acessos:',e);
             status.textContent='Não foi possível consultar todos os acessos: '+(e?.message||String(e))+'. Confira as permissões de leitura do administrador no Supabase.';
           }
+        }
+
+        // v25.61.16: edição via RPC segura. Não faz escrita direta nas tabelas de acesso.
+        async function abaeteEditarVinculos(professorId,nome,atuais){
+          if(papelOnline!=='administrador'||!usuarioOnline)return;
+          const escolhas=turmas.map(t=>({id:String(t.id),nome:String(t.nome||t.id)}));
+          if(!escolhas.length){alert('Nenhuma turma cadastrada.');return;}
+          const fundo=document.createElement('div');
+          fundo.className='fixed inset-0 z-[9999] bg-black/60 flex items-center justify-center p-4';
+          const painel=document.createElement('div');
+          painel.className='bg-white rounded-xl shadow-xl p-5 w-full max-w-lg max-h-[85vh] overflow-y-auto space-y-3';
+          const h=document.createElement('h3');h.className='text-xl font-bold';h.textContent='Turmas autorizadas — '+nome;
+          const aviso=document.createElement('p');aviso.className='text-sm text-gray-600';
+          aviso.textContent='Marque as turmas que o professor poderá acessar. A alteração exige confirmação e validação do administrador no Supabase.';
+          const itens=document.createElement('div');itens.className='space-y-2';
+          const caixas=[];
+          for(const t of escolhas){
+            const label=document.createElement('label');label.className='flex gap-3 items-center border rounded-lg p-3 cursor-pointer';
+            const cb=document.createElement('input');cb.type='checkbox';cb.checked=atuais.includes(t.id);cb.value=t.id;cb.className='w-5 h-5';
+            const txt=document.createElement('span');txt.textContent=t.nome;
+            label.append(cb,txt);itens.append(label);caixas.push(cb);
+          }
+          const mensagem=document.createElement('p');mensagem.className='text-sm text-red-700';mensagem.setAttribute('role','status');
+          const acoes=document.createElement('div');acoes.className='flex flex-wrap justify-end gap-2';
+          const cancelar=document.createElement('button');cancelar.type='button';cancelar.className='px-4 py-2 rounded-lg bg-gray-200';cancelar.textContent='Cancelar';cancelar.onclick=()=>fundo.remove();
+          const salvar=document.createElement('button');salvar.type='button';salvar.className='px-4 py-2 rounded-lg bg-blue-700 text-white';salvar.textContent='Salvar vínculos';
+          salvar.onclick=async()=>{
+            const ids=caixas.filter(c=>c.checked).map(c=>c.value);
+            if(!confirm('Confirmar alteração das turmas autorizadas de '+nome+'?'))return;
+            salvar.disabled=true;salvar.textContent='Salvando...';mensagem.textContent='';
+            try{
+              const {error}=await supabaseClient.rpc('abaete_atualizar_turmas_professor',{p_professor_id:professorId,p_turmas:ids});
+              if(error)throw error;
+              fundo.remove();await abaeteListarAcessosProfessores();
+              alert('Vínculos atualizados com sucesso.');
+            }catch(e){
+              mensagem.textContent='Não foi possível salvar: '+(e?.message||String(e))+'. Verifique se a função SQL de segurança v25.61.16 foi instalada.';
+            }finally{salvar.disabled=false;salvar.textContent='Salvar vínculos';}
+          };
+          acoes.append(cancelar,salvar);painel.append(h,aviso,itens,mensagem,acoes);fundo.append(painel);document.body.append(fundo);
         }
 
         // CONTROLADOR DE ABAS
