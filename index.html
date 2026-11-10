@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.61.17 Painel do Professor — nomes das turmas</title>
+    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.61.18 Painel do Professor — chamada antes da aula</title>
     <!-- Supabase JS: autenticação e banco de dados online -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Tailwind CSS -->
@@ -1893,7 +1893,7 @@ html { -webkit-text-size-adjust:100%; }
                     presenca_professor:pres.value.toLowerCase(),conteudo:conteudo.value.trim()
                   });
                   if(error)throw error;
-                  saida.textContent='Aula salva com sucesso no Supabase.';
+                  saida.textContent='Aula salva com sucesso no Supabase. Agora você pode concluir a chamada.';
                   await abaeteListarAulasProfessor(id,historico,consultar);
                 }catch(e){saida.textContent='Não foi possível salvar: '+(e.message||String(e));}
                 finally{salvar.disabled=false;}
@@ -1912,8 +1912,8 @@ html { -webkit-text-size-adjust:100%; }
               turmaChamada.append(rotuloTurma,turmaSomenteLeitura);
               const rotuloData=document.createElement('label');rotuloData.textContent='DATA DA AULA';rotuloData.className='block text-xs mb-1';
               const dataPresenca=document.createElement('input');dataPresenca.type='date';dataPresenca.className='border rounded-xl p-2 text-gray-800 bg-white';dataPresenca.value=dataAula.value;
-              dataPresenca.addEventListener('change',()=>{dataAula.value=dataPresenca.value;});
-              dataAula.addEventListener('change',()=>{dataPresenca.value=dataAula.value;});
+              dataPresenca.addEventListener('change',()=>{dataAula.value=dataPresenca.value;abaeteCarregarChamadaAlunos(id,dataPresenca.value,areaChamada,btnCarregar);});
+              dataAula.addEventListener('change',()=>{dataPresenca.value=dataAula.value;abaeteCarregarChamadaAlunos(id,dataPresenca.value,areaChamada,btnCarregar);});
               dataChamada.append(turmaChamada,rotuloData,dataPresenca);cabChamada.append(tituloChamada,dataChamada);
               const quadroChamada=document.createElement('div');quadroChamada.className='bg-white border rounded-2xl shadow-sm p-5 space-y-4';
               const linhaTitulo=document.createElement('div');linhaTitulo.className='abaete-chamada-cabecalho flex flex-wrap items-center justify-between gap-3 border-b pb-3';
@@ -1928,6 +1928,8 @@ html { -webkit-text-size-adjust:100%; }
               todosPresentes.addEventListener('click',()=>{areaChamada.querySelectorAll('select[data-presenca-aluno]').forEach(el=>{el.value='presente';el.dispatchEvent(new Event('change'));});});
               todosAusentes.addEventListener('click',()=>{areaChamada.querySelectorAll('select[data-presenca-aluno]').forEach(el=>{el.value='ausente';el.dispatchEvent(new Event('change'));});});
               quadroChamada.append(linhaTitulo,btnCarregar,areaChamada);chamada.append(cabChamada,quadroChamada);
+              // Carrega alunos aprovados mesmo que a aula ainda não exista.
+              abaeteCarregarChamadaAlunos(id,dataPresenca.value,areaChamada,btnCarregar);
               formulario.append(chamada);
               // Etapa 11: relatório exclusivamente da turma autorizada.
               const relatorio=document.createElement('section');
@@ -1954,18 +1956,21 @@ html { -webkit-text-size-adjust:100%; }
         async function abaeteCarregarChamadaAlunos(turmaId,dataAula,area,botao){
           if(!usuarioOnline||!abaeteTurmasProfessor.includes(String(turmaId))){area.textContent='Turma não autorizada.';return;}
           if(!dataAula){area.textContent='Informe a data da aula acima.';return;}
-          botao.disabled=true;area.textContent='Carregando aula, alunos e presenças...';
+          botao.disabled=true;area.textContent='Carregando alunos e presenças...';
           try{
             const {data:aula,error:erroAula}=await supabaseClient.from('abaete_aulas_professores')
               .select('id,data_aula').eq('turma_id',String(turmaId)).eq('professor_id',usuarioOnline.id).eq('data_aula',dataAula).maybeSingle();
             if(erroAula)throw erroAula;
-            if(!aula){area.textContent='Nenhuma aula registrada nesta data. Primeiro salve a aula no diário e depois carregue a chamada.';return;}
             const {data:alunos,error:erroAlunos}=await supabaseClient.from('cadastros_alunos')
               .select('id,nome_completo').eq('turma_id',String(turmaId)).eq('status','aprovado').order('nome_completo',{ascending:true});
             if(erroAlunos)throw erroAlunos;
-            const {data:presencas,error:erroPres}=await supabaseClient.from('abaete_presencas_alunos')
-              .select('aluno_id,situacao').eq('aula_id',aula.id);
-            if(erroPres)throw erroPres;
+            let presencas=[];
+            if(aula){
+              const {data:presDados,error:erroPres}=await supabaseClient.from('abaete_presencas_alunos')
+                .select('aluno_id,situacao').eq('aula_id',aula.id);
+              if(erroPres)throw erroPres;
+              presencas=presDados||[];
+            }
             area.replaceChildren();
             if(!alunos?.length){area.textContent='Nenhum aluno aprovado nesta turma.';return;}
             // Etapa 12: graduação fornecida por RPC com autorização verificada no servidor.
@@ -1979,6 +1984,7 @@ html { -webkit-text-size-adjust:100%; }
             }
             const mapa=new Map((presencas||[]).map(x=>[String(x.aluno_id),x.situacao]));
             const linhas=[];
+            if(!aula){const aviso=document.createElement('p');aviso.className='text-sm font-semibold text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3';aviso.textContent='Você já pode marcar as presenças. Para concluir e salvar a chamada, registre primeiro a aula desta data no diário.';area.append(aviso);}
             for(const aluno of alunos){
               const linha=document.createElement('div');
               linha.className='abaete-chamada-atleta flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 border border-gray-200 bg-gray-50 rounded-xl px-3 py-4';
@@ -2014,11 +2020,20 @@ html { -webkit-text-size-adjust:100%; }
             const msg=document.createElement('p');msg.className='text-sm';const rodape=document.createElement('div');rodape.className='flex flex-wrap justify-end gap-3 pt-4 border-t';rodape.append(salvar);area.append(rodape,msg);
             salvar.addEventListener('click',async()=>{
               if(!linhas.every(x=>x.sel.value)){msg.textContent='Marque a situação de todos os alunos antes de salvar.';return;}
+              // Confere novamente a aula no servidor; não descarta marcações feitas antes do registro.
+              let aulaParaSalvar=aula;
+              try{
+                const {data:aulaAtual,error:erroAtual}=await supabaseClient.from('abaete_aulas_professores')
+                  .select('id').eq('turma_id',String(turmaId)).eq('professor_id',usuarioOnline.id).eq('data_aula',dataAula).maybeSingle();
+                if(erroAtual)throw erroAtual;
+                aulaParaSalvar=aulaAtual;
+              }catch(e){msg.textContent='Não foi possível verificar a aula: '+(e.message||String(e));return;}
+              if(!aulaParaSalvar){msg.textContent='Para concluir a chamada, primeiro salve o registro da aula desta data. Suas marcações de presença serão mantidas.';return;}
               if(!confirm('Salvar chamada de '+dataAula+' para '+linhas.length+' aluno(s)?'))return;
               salvar.disabled=true;msg.textContent='Salvando presenças...';
               try{
                 // Upsert por aula e aluno_id (UUID do cadastro em texto). A RLS valida aula, professor e turma.
-                const registros=linhas.map(({aluno,sel})=>({aula_id:aula.id,aluno_id:String(aluno.id),situacao:sel.value}));
+                const registros=linhas.map(({aluno,sel})=>({aula_id:aulaParaSalvar.id,aluno_id:String(aluno.id),situacao:sel.value}));
                 const {error}=await supabaseClient.from('abaete_presencas_alunos')
                   .upsert(registros,{onConflict:'aula_id,aluno_id'});
                 if(error)throw error;
