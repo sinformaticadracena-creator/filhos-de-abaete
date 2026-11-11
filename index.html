@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.61.18 Painel do Professor — chamada antes da aula</title>
+    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.61.19 Painel do Professor — validação e diagnóstico da chamada</title>
     <!-- Supabase JS: autenticação e banco de dados online -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Tailwind CSS -->
@@ -1972,7 +1972,10 @@ html { -webkit-text-size-adjust:100%; }
               presencas=presDados||[];
             }
             area.replaceChildren();
-            if(!alunos?.length){area.textContent='Nenhum aluno aprovado nesta turma.';return;}
+            if(!alunos?.length){
+              area.textContent='Nenhum aluno aprovado encontrado no cadastro online desta turma. Alunos que aparecem apenas no painel administrativo antigo (app_state) não são automaticamente registros de cadastros_alunos. Verifique a vinculação e a migração desses cadastros com o administrador; nenhuma alteração foi feita nos alunos.';
+              return;
+            }
             // Etapa 12: graduação fornecida por RPC com autorização verificada no servidor.
             // Nunca consulta app_state diretamente na sessão do professor.
             const graduacoes=new Map();
@@ -2028,7 +2031,7 @@ html { -webkit-text-size-adjust:100%; }
                 if(erroAtual)throw erroAtual;
                 aulaParaSalvar=aulaAtual;
               }catch(e){msg.textContent='Não foi possível verificar a aula: '+(e.message||String(e));return;}
-              if(!aulaParaSalvar){msg.textContent='Para concluir a chamada, primeiro salve o registro da aula desta data. Suas marcações de presença serão mantidas.';return;}
+              if(!aulaParaSalvar){msg.textContent='Para concluir a chamada, primeiro salve o registro da aula desta data. Suas marcações de presença serão mantidas.';msg.setAttribute('role','alert');return;}
               if(!confirm('Salvar chamada de '+dataAula+' para '+linhas.length+' aluno(s)?'))return;
               salvar.disabled=true;msg.textContent='Salvando presenças...';
               try{
