@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.61.22 Edição do professor sem transferência — Mestre</title>
+    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.61.23 Vínculo explícito de cadastro online — Mestre</title>
     <!-- Supabase JS: autenticação e banco de dados online -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Tailwind CSS -->
@@ -1170,6 +1170,12 @@ html { -webkit-text-size-adjust:100%; }
                     <input id="atleta-data-inscricao-input" type="date" class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white" aria-describedby="atleta-data-inscricao-ajuda">
                     <p id="atleta-data-inscricao-ajuda" class="text-xs text-gray-600 mt-1">Para alunos antigos, informe a data verdadeira da matrícula e clique em Salvar. Se não souber, deixe em branco. Para novos cadastros, a data de hoje será registrada automaticamente.</p>
                     <span id="atleta-data-inscricao-texto" class="hidden">Não registrada</span>
+                </div>
+
+                <div id="abaete-vinculo-online-box" class="hidden rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm">
+                    <label for="abaete-vinculo-online" class="block font-bold text-amber-950 mb-2">Vincular ao cadastro online do aluno (administrador)</label>
+                    <select id="abaete-vinculo-online" class="w-full border border-amber-300 rounded-lg p-2 bg-white"><option value="">Não vincular agora</option></select>
+                    <p id="abaete-vinculo-online-ajuda" class="text-xs text-amber-950 mt-2">Escolha apenas se tiver certeza de qual cadastro corresponde a este atleta. Alunos com nomes ou CPFs repetidos devem ser diferenciados pelo identificador e pela turma atual. Não é feito vínculo automático.</p>
                 </div>
 
                 <!-- UPLOAD FOTO -->
@@ -2824,8 +2830,32 @@ html { -webkit-text-size-adjust:100%; }
             return Number.isNaN(data.getTime()) ? 'Não registrada' : data.toLocaleDateString('pt-BR', {timeZone:'America/Sao_Paulo'});
         }
 
+        async function prepararVinculoOnlineAtleta(atleta) {
+            const caixa=document.getElementById('abaete-vinculo-online-box');
+            const select=document.getElementById('abaete-vinculo-online');
+            caixa.classList.add('hidden');select.replaceChildren(new Option('Não vincular agora',''));
+            if(!atleta || atleta.cadastroOnlineId || papelOnline!=='administrador' || !supabaseClient) return;
+            caixa.classList.remove('hidden');
+            select.replaceChildren(new Option('Carregando cadastros online...',''));
+            try {
+                const {data,error}=await supabaseClient.from('cadastros_alunos')
+                    .select('id,nome_completo,cpf,turma_id,status').eq('status','aprovado').limit(500);
+                if(error)throw error;
+                select.replaceChildren(new Option('Não vincular agora',''));
+                const vinculados=new Set(atletas.filter(a=>a.cadastroOnlineId).map(a=>String(a.cadastroOnlineId)));
+                for(const c of data||[]) {
+                    if(vinculados.has(String(c.id)))continue;
+                    const cpf=String(c.cpf||'').replace(/\D/g,'');
+                    const cpfLocal=String(atleta.cpf||'').replace(/\D/g,'');
+                    if(cpfLocal && cpf && cpf!==cpfLocal)continue;
+                    select.add(new Option(`${c.nome_completo} | turma atual: ${c.turma_id||'sem turma'} | ID: ${c.id}`,String(c.id)));
+                }
+            }catch(e){select.replaceChildren(new Option('Consulta indisponível; não vincular',''));console.error('Consulta dos vínculos online:',e);}
+        }
+
         function openModalAtleta(id = null) {
             fotoTempBase64 = "";
+            document.getElementById('abaete-vinculo-online-box').classList.add('hidden');
             document.getElementById('form-atleta').reset();
             document.getElementById('atleta-id').value = "";
             document.getElementById('prev-foto-atleta').classList.add('hidden');
@@ -2842,6 +2872,7 @@ html { -webkit-text-size-adjust:100%; }
                 if (a) {
                     document.getElementById('modal-atleta-titulo').innerText = "Editar Atleta";
                     document.getElementById('atleta-id').value = a.id;
+                    void prepararVinculoOnlineAtleta(a);
                     document.getElementById('atleta-data-inscricao-texto').textContent = mostrarDataInscricao(a.dataInscricao);
                     document.getElementById('atleta-data-inscricao-input').value = a.dataInscricao ? new Date(a.dataInscricao).toLocaleDateString('en-CA', {timeZone:'America/Sao_Paulo'}) : '';
                     caixaDataInscricao.classList.remove('hidden');
@@ -3012,6 +3043,23 @@ html { -webkit-text-size-adjust:100%; }
                 foto: fotoTempBase64 || (id ? (atletas.find(a => a.id == id) || {}).foto || '' : '')
             };
 
+            // Vínculo explícito: nunca deduzir o registro pelo nome ou CPF, pois podem se repetir.
+            const vinculoSelecionado=document.getElementById('abaete-vinculo-online').value;
+            if(atletaAnterior && !atletaAnterior.cadastroOnlineId && vinculoSelecionado){
+                if(atletas.some(a=>String(a.id)!==String(atletaData.id) && String(a.cadastroOnlineId||'')===vinculoSelecionado))
+                    throw new Error('Este cadastro online já está vinculado a outro atleta.');
+                const {data:registroVinculo,error:erroVinculo}=await supabaseClient.from('cadastros_alunos')
+                    .select('id,cpf,status').eq('id',vinculoSelecionado).maybeSingle();
+                if(erroVinculo||!registroVinculo||registroVinculo.status!=='aprovado')
+                    throw new Error('Cadastro online selecionado não está disponível ou aprovado.');
+                const cpfCadastro=String(registroVinculo.cpf||'').replace(/\D/g,'');
+                const cpfAtleta=String(atletaData.cpf||'').replace(/\D/g,'');
+                if(cpfCadastro && cpfAtleta && cpfCadastro!==cpfAtleta)
+                    throw new Error('O CPF do cadastro online não corresponde ao CPF deste atleta.');
+                atletaData.cadastroOnlineId=vinculoSelecionado;
+            }
+            if(atletaAnterior && !atletaData.cadastroOnlineId && String(atletaAnterior.turma||'')!==String(atletaData.turma||''))
+                throw new Error('Transferência não realizada: vincule primeiro este atleta ao cadastro online correto, no campo amarelo acima. Nenhum dado foi alterado.');
             if (!supabaseClient || !usuarioOnline || !sincronizacaoPronta || papelOnline !== 'administrador') {
                 throw new Error('Entre como administrador e aguarde o carregamento dos dados do Supabase.');
             }
@@ -3098,7 +3146,7 @@ html { -webkit-text-size-adjust:100%; }
                 } catch(errSituacao) {
                     avisoCarteirinha='\nATENÇÃO: cadastro salvo, mas a carteirinha NÃO foi sincronizada: '+(errSituacao.message||String(errSituacao))+'. Verifique no painel de carteirinhas.';
                 }
-                alert('Atleta salvo e confirmado no Supabase.'+avisoVinculo+avisoCarteirinha);
+                alert((avisoVinculo ? 'ATENÇÃO: salvamento parcial no Supabase.' : 'Atleta salvo e confirmado no Supabase.')+avisoVinculo+avisoCarteirinha);
             } catch (erroRemoto) {
                 atletas = anteriores;
                 throw new Error('A alteração NÃO foi confirmada no Supabase: '+(erroRemoto.message||String(erroRemoto)));
