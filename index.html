@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.61.21 Consulta de alunos por turma — Mestre</title>
+    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.61.22 Edição do professor sem transferência — Mestre</title>
     <!-- Supabase JS: autenticação e banco de dados online -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Tailwind CSS -->
@@ -2277,7 +2277,7 @@ html { -webkit-text-size-adjust:100%; }
               linha.appendChild(graduacaoAluno);
               const editar=document.createElement('button');
               editar.type='button';editar.className='inline-block text-blue-700 font-semibold underline py-2';
-              editar.textContent='Editar / Transferir';
+              editar.textContent='Editar dados';
               const formularioEdicao=document.createElement('form');
               formularioEdicao.className='hidden mt-3 space-y-2 border-t pt-3';
               const campos=[
@@ -2298,21 +2298,16 @@ html { -webkit-text-size-adjust:100%; }
                 if(chave==='cpf_responsavel')input.maxLength=14;
                 label.append(input);formularioEdicao.append(label);entradas[parametro]=input;
               }
-              const lblDestino=document.createElement('label');lblDestino.className='block text-xs font-semibold';lblDestino.textContent='Turma (transferência apenas entre turmas autorizadas)';
-              const destino=document.createElement('select');destino.className='w-full border rounded p-2 mt-1';
-              for(const t of abaeteTurmasProfessor){const opt=document.createElement('option');opt.value=t;opt.textContent=t===String(turmaId)?'Turma atual — '+t:'Turma autorizada — '+t;destino.append(opt);}
-              destino.value=String(turmaId);lblDestino.append(destino);formularioEdicao.append(lblDestino);
               const salvar=document.createElement('button');salvar.type='submit';salvar.className='px-3 py-2 bg-green-700 text-white rounded font-semibold';salvar.textContent='Salvar alterações';
               const aviso=document.createElement('p');aviso.setAttribute('role','status');aviso.className='text-sm';
               formularioEdicao.append(salvar,aviso);
               editar.addEventListener('click',()=>formularioEdicao.classList.toggle('hidden'));
               formularioEdicao.addEventListener('submit',async ev=>{
                 ev.preventDefault();aviso.textContent='';
-                if(!abaeteTurmasProfessor.includes(destino.value)){aviso.textContent='Turma não autorizada';return;}
-                if(destino.value!==String(turmaId)&&!confirm('Confirmar transferência? O histórico das chamadas será preservado.'))return;
+                // Professores editam apenas alunos da turma autorizada, sem transferência.
                 salvar.disabled=true;
                 try{
-                  const parametros={p_aluno_id:aluno.id,p_turma_destino:destino.value};
+                  const parametros={p_aluno_id:aluno.id,p_turma_destino:String(turmaId)};
                   for(const [chave,input] of Object.entries(entradas))parametros[chave]=input.value.trim();
                   const {error}=await supabaseClient.rpc('abaete_editar_aluno_professor',parametros);
                   if(error)throw error;
