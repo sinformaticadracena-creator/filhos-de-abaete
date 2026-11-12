@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.61.24 Diagnóstico de vínculo online — Mestre</title>
+    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.61.25 Arquivamento seguro — Mestre</title>
     <!-- Supabase JS: autenticação e banco de dados online -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Tailwind CSS -->
@@ -699,6 +699,11 @@ html { -webkit-text-size-adjust:100%; }
                 </div>
             </div>
 
+            <div class="bg-white border border-gray-200 rounded-xl px-4 py-3 flex items-center gap-2 text-sm">
+                <input type="checkbox" id="abaete-mostrar-arquivados" onchange="renderAtletas()" class="w-4 h-4">
+                <label for="abaete-mostrar-arquivados" class="font-semibold">Mostrar alunos arquivados (histórico preservado)</label>
+            </div>
+
             <!-- TABELA DE ATLETAS -->
             <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
                 <div class="overflow-x-auto">
@@ -1172,7 +1177,7 @@ html { -webkit-text-size-adjust:100%; }
                     <span id="atleta-data-inscricao-texto" class="hidden">Não registrada</span>
                 </div>
 
-                <div id="abaete-vinculo-online-box" class="hidden rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm">
+                <div id="abaete-vinculo-online-box" style="display:none!important" class="hidden rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm">
                     <label for="abaete-vinculo-online" class="block font-bold text-amber-950 mb-2">Vincular ao cadastro online do aluno (administrador)</label>
                     <select id="abaete-vinculo-online" class="w-full border border-amber-300 rounded-lg p-2 bg-white"><option value="">Não vincular agora</option></select>
                     <p id="abaete-vinculo-online-ajuda" class="text-xs text-amber-950 mt-2">Escolha apenas se tiver certeza de qual cadastro corresponde a este atleta. Alunos com nomes ou CPFs repetidos devem ser diferenciados pelo identificador e pela turma atual. Não é feito vínculo automático.</p>
@@ -2734,6 +2739,7 @@ html { -webkit-text-size-adjust:100%; }
             const busca = document.getElementById('filtro-atleta-busca').value.toLowerCase();
             const turmaFiltro = document.getElementById('filtro-atleta-turma').value;
             const catFiltro = document.getElementById('filtro-atleta-categoria').value;
+            const mostrarArquivados = !!document.getElementById('abaete-mostrar-arquivados')?.checked;
 
             tbody.innerHTML = '';
 
@@ -2741,7 +2747,7 @@ html { -webkit-text-size-adjust:100%; }
                 const matchBusca = a.nome.toLowerCase().includes(busca) || (a.apelido && a.apelido.toLowerCase().includes(busca));
                 const matchTurma = !turmaFiltro || a.turma === turmaFiltro;
                 const matchCat = !catFiltro || a.categoria === catFiltro;
-                return matchBusca && matchTurma && matchCat;
+                return matchBusca && matchTurma && matchCat && (mostrarArquivados ? !!a.arquivado : !a.arquivado);
             });
 
             if (filtrados.length === 0) {
@@ -2762,7 +2768,7 @@ html { -webkit-text-size-adjust:100%; }
                     <td class="py-3 px-4 flex items-center gap-3">
                         ${fotoHtml}
                         <div>
-                            <p class="font-bold text-gray-800">${a.nome}</p>
+                            <p class="font-bold text-gray-800">${a.nome}${a.arquivado ? ' <span class="text-xs text-amber-700">(Arquivado)</span>' : ''}</p>
                             <p class="text-xs text-gray-400">${a.categoria} • ${a.nascimento ? a.nascimento.split('-').reverse().join('/') : 'N/D'}</p>
                             <p class="text-xs text-gray-500">Inscrição: ${mostrarDataInscricao(a.dataInscricao)}</p>
                         </div>
@@ -2778,8 +2784,8 @@ html { -webkit-text-size-adjust:100%; }
                         <button onclick="openModalAtleta(${a.id})" class="text-blue-600 hover:text-blue-800 p-1.5 rounded-lg hover:bg-blue-50">
                             <i class="fa-solid fa-pen"></i>
                         </button>
-                        <button onclick="excluirAtleta(${a.id})" class="text-red-600 hover:text-red-800 p-1.5 rounded-lg hover:bg-red-50">
-                            <i class="fa-solid fa-trash"></i>
+                        <button onclick="excluirAtleta(${a.id})" title="${a.arquivado?'Reativar':'Arquivar'} aluno (sem apagar histórico)" class="text-amber-700 hover:text-amber-900 p-1.5 rounded-lg hover:bg-amber-50">
+                            <i class="fa-solid ${a.arquivado?'fa-rotate-left':'fa-box-archive'}"></i> ${a.arquivado?'Reativar':'Arquivar'}
                         </button>
                     </td>
                 `;
@@ -2830,59 +2836,34 @@ html { -webkit-text-size-adjust:100%; }
             return Number.isNaN(data.getTime()) ? 'Não registrada' : data.toLocaleDateString('pt-BR', {timeZone:'America/Sao_Paulo'});
         }
 
-        // v25.61.24 — diagnóstico explícito de cadastros elegíveis para vínculo.
         async function prepararVinculoOnlineAtleta(atleta) {
             const caixa=document.getElementById('abaete-vinculo-online-box');
             const select=document.getElementById('abaete-vinculo-online');
-            const ajuda=document.getElementById('abaete-vinculo-online-ajuda');
-            const textoOriginal='Escolha apenas se tiver certeza de qual cadastro corresponde a este atleta. Alunos com nomes ou CPFs repetidos devem ser diferenciados pelo identificador e pela turma atual. Não é feito vínculo automático.';
-            caixa.classList.add('hidden');
-            select.replaceChildren(new Option('Não vincular agora',''));
-            ajuda.textContent=textoOriginal;
+            caixa.classList.add('hidden');select.replaceChildren(new Option('Não vincular agora',''));
             if(!atleta || atleta.cadastroOnlineId || papelOnline!=='administrador' || !supabaseClient) return;
             caixa.classList.remove('hidden');
-            select.disabled=true;
-            select.replaceChildren(new Option('Consultando cadastros online...',''));
+            select.replaceChildren(new Option('Carregando cadastros online...',''));
             try {
-                // Buscar apenas colunas necessárias; não mostrar cadastros de terceiros
-                // que tenham CPF diferente do atleta local.
                 const {data,error}=await supabaseClient.from('cadastros_alunos')
-                    .select('id,nome_completo,cpf,turma_id,status')
-                    .eq('status','aprovado').limit(1000);
+                    .select('id,nome_completo,cpf,turma_id,status').eq('status','aprovado').limit(500);
                 if(error)throw error;
                 select.replaceChildren(new Option('Não vincular agora',''));
                 const vinculados=new Set(atletas.filter(a=>a.cadastroOnlineId).map(a=>String(a.cadastroOnlineId)));
-                const cpfLocal=String(atleta.cpf||'').replace(/\D/g,'');
-                const normalizarNome=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
-                let jaVinculados=0, cpfDiferente=0, elegiveis=0, semCpf=0;
                 for(const c of data||[]) {
-                    if(vinculados.has(String(c.id))){jaVinculados++;continue;}
+                    if(vinculados.has(String(c.id)))continue;
                     const cpf=String(c.cpf||'').replace(/\D/g,'');
-                    // CPF diferente é incompatível. Quando CPF não está preenchido,
-                    // só sugerir candidato com o mesmo nome, exigindo escolha explícita.
-                    if(cpfLocal && cpf && cpf!==cpfLocal){cpfDiferente++;continue;}
-                    if((!cpfLocal || !cpf) && normalizarNome(c.nome_completo)!==normalizarNome(atleta.nome)){
-                        semCpf++;continue;
-                    }
+                    const cpfLocal=String(atleta.cpf||'').replace(/\D/g,'');
+                    if(cpfLocal && cpf && cpf!==cpfLocal)continue;
                     select.add(new Option(`${c.nome_completo} | turma atual: ${c.turma_id||'sem turma'} | ID: ${c.id}`,String(c.id)));
-                    elegiveis++;
                 }
-                if(!elegiveis){
-                    ajuda.textContent=`Nenhum cadastro online elegível encontrado entre ${(data||[]).length} cadastro(s) aprovado(s) visível(is). Já vinculados: ${jaVinculados}; CPF diferente: ${cpfDiferente}; sem CPF correspondente/nome diferente: ${semCpf}. Confira o CPF e o nome do cadastro online no Supabase. Nenhum vínculo foi realizado.`;
-                } else {
-                    ajuda.textContent=`${elegiveis} cadastro(s) compatível(is) disponível(is). Confira cuidadosamente nome, turma e ID antes de vincular. ${textoOriginal}`;
-                }
-            }catch(e){
-                select.replaceChildren(new Option('Consulta indisponível; não vincular',''));
-                ajuda.textContent='Não foi possível consultar os cadastros online: '+(e?.message||String(e))+'. Nenhum vínculo foi realizado. Confira as permissões de leitura no Supabase.';
-                console.error('Consulta dos vínculos online:',e);
-            }finally{select.disabled=false;}
+            }catch(e){select.replaceChildren(new Option('Consulta indisponível; não vincular',''));console.error('Consulta dos vínculos online:',e);}
         }
 
         function openModalAtleta(id = null) {
             fotoTempBase64 = "";
             document.getElementById('abaete-vinculo-online-box').classList.add('hidden');
             document.getElementById('form-atleta').reset();
+            document.getElementById('atleta-turma').disabled = false;
             document.getElementById('atleta-id').value = "";
             document.getElementById('prev-foto-atleta').classList.add('hidden');
             document.getElementById('icon-foto-atleta').classList.remove('hidden');
@@ -2898,7 +2879,7 @@ html { -webkit-text-size-adjust:100%; }
                 if (a) {
                     document.getElementById('modal-atleta-titulo').innerText = "Editar Atleta";
                     document.getElementById('atleta-id').value = a.id;
-                    void prepararVinculoOnlineAtleta(a);
+                    // Vínculo manual desativado na versão simplificada.
                     document.getElementById('atleta-data-inscricao-texto').textContent = mostrarDataInscricao(a.dataInscricao);
                     document.getElementById('atleta-data-inscricao-input').value = a.dataInscricao ? new Date(a.dataInscricao).toLocaleDateString('en-CA', {timeZone:'America/Sao_Paulo'}) : '';
                     caixaDataInscricao.classList.remove('hidden');
@@ -2910,6 +2891,7 @@ html { -webkit-text-size-adjust:100%; }
                     atualizarOpcoesGraduacao();
                     document.getElementById('atleta-graduacao').value = a.graduacao || 'Sem graduação';
                     document.getElementById('atleta-turma').value = a.turma;
+                    document.getElementById('atleta-turma').disabled = true;
                     document.getElementById('atleta-endereco').value = a.endereco || '';
                     document.getElementById('atleta-bairro').value = a.bairro || '';
                     document.getElementById('atleta-telefone').value = a.telefone || '';
@@ -3055,7 +3037,7 @@ html { -webkit-text-size-adjust:100%; }
                 cpf: document.getElementById('atleta-cpf').value,
                 categoria: document.getElementById('atleta-categoria').value,
                 graduacao: document.getElementById('atleta-graduacao').value,
-                turma: document.getElementById('atleta-turma').value,
+                turma: atletaAnterior ? atletaAnterior.turma : document.getElementById('atleta-turma').value,
                 nascimento: document.getElementById('atleta-nascimento').value,
                 endereco: document.getElementById('atleta-endereco').value,
                 bairro: document.getElementById('atleta-bairro').value.trim(),
@@ -3069,23 +3051,9 @@ html { -webkit-text-size-adjust:100%; }
                 foto: fotoTempBase64 || (id ? (atletas.find(a => a.id == id) || {}).foto || '' : '')
             };
 
-            // Vínculo explícito: nunca deduzir o registro pelo nome ou CPF, pois podem se repetir.
-            const vinculoSelecionado=document.getElementById('abaete-vinculo-online').value;
-            if(atletaAnterior && !atletaAnterior.cadastroOnlineId && vinculoSelecionado){
-                if(atletas.some(a=>String(a.id)!==String(atletaData.id) && String(a.cadastroOnlineId||'')===vinculoSelecionado))
-                    throw new Error('Este cadastro online já está vinculado a outro atleta.');
-                const {data:registroVinculo,error:erroVinculo}=await supabaseClient.from('cadastros_alunos')
-                    .select('id,cpf,status').eq('id',vinculoSelecionado).maybeSingle();
-                if(erroVinculo||!registroVinculo||registroVinculo.status!=='aprovado')
-                    throw new Error('Cadastro online selecionado não está disponível ou aprovado.');
-                const cpfCadastro=String(registroVinculo.cpf||'').replace(/\D/g,'');
-                const cpfAtleta=String(atletaData.cpf||'').replace(/\D/g,'');
-                if(cpfCadastro && cpfAtleta && cpfCadastro!==cpfAtleta)
-                    throw new Error('O CPF do cadastro online não corresponde ao CPF deste atleta.');
-                atletaData.cadastroOnlineId=vinculoSelecionado;
-            }
-            if(atletaAnterior && !atletaData.cadastroOnlineId && String(atletaAnterior.turma||'')!==String(atletaData.turma||''))
-                throw new Error('Transferência não realizada: vincule primeiro este atleta ao cadastro online correto, no campo amarelo acima. Nenhum dado foi alterado.');
+            // Transferências e novos vínculos desativados. Mantém vínculos já existentes.
+            if (atletaAnterior && String(atletaAnterior.turma||'')!==String(atletaData.turma||''))
+                throw new Error('A mudança de turma foi desativada. Arquive o cadastro e solicite uma nova inscrição.');
             if (!supabaseClient || !usuarioOnline || !sincronizacaoPronta || papelOnline !== 'administrador') {
                 throw new Error('Entre como administrador e aguarde o carregamento dos dados do Supabase.');
             }
@@ -3125,39 +3093,8 @@ html { -webkit-text-size-adjust:100%; }
                     a.turma === atletaData.turma && a.obs === atletaData.obs
                 );
                 if (!confirmado) throw new Error('O Supabase não confirmou os dados alterados. Não feche esta página.');
-                // v25.23: vincula o cadastro online à turma na tabela normalizada.
-                // Só o administrador autenticado pode executar esta atualização (RLS + gatilho).
-                // Nunca tenta alterar o cadastro de atletas que não vieram de cadastros_alunos.
-                let avisoVinculo='';
-                if (atletaData.cadastroOnlineId) {
-                    try {
-                        const turmaSelecionada=String(atletaData.turma||'').trim();
-                        const turmaCorrespondente=(turmas||[]).find(t=>
-                            String(t.id)===turmaSelecionada ||
-                            String(t.nome||'').trim()===turmaSelecionada ||
-                            String(t.nomeTurma||'').trim()===turmaSelecionada
-                        );
-                        if (!turmaCorrespondente) {
-                            throw new Error('Turma não encontrada na lista de turmas; confira o cadastro da turma.');
-                        }
-                        const turmaId=String(turmaCorrespondente.id);
-                        const {data:cadastroAtual,error:erroCadastro}=await supabaseClient
-                            .from('cadastros_alunos').select('id,turma_id')
-                            .eq('id',String(atletaData.cadastroOnlineId)).maybeSingle();
-                        if (erroCadastro) throw erroCadastro;
-                        if (!cadastroAtual) throw new Error('Cadastro online não encontrado.');
-                        if (String(cadastroAtual.turma_id||'')!==turmaId) {
-                            const {data:atualizado,error:erroTurma}=await supabaseClient
-                                .from('cadastros_alunos').update({turma_id:turmaId})
-                                .eq('id',String(atletaData.cadastroOnlineId)).select('id,turma_id').single();
-                            if (erroTurma) throw erroTurma;
-                            if (String(atualizado?.turma_id)!==turmaId) throw new Error('O banco não confirmou o vínculo da turma.');
-                        }
-                    } catch (erroVinculo) {
-                        console.error('Falha ao sincronizar turma do cadastro online:',erroVinculo);
-                        avisoVinculo='\nATENÇÃO: atleta salvo no painel, mas o vínculo da turma no cadastro online NÃO foi atualizado: '+(erroVinculo.message||String(erroVinculo))+'. O aluno ainda pode não aparecer para o professor.';
-                    }
-                }
+                // Sem transferências: não modificar turma_id de cadastros_alunos.
+                const avisoVinculo='';
                 salvarStorage();
                 renderAtletas();
                 closeModalAtleta();
@@ -3188,12 +3125,34 @@ html { -webkit-text-size-adjust:100%; }
             }
         }
 
-        function excluirAtleta(id) {
-            if (confirm("Tem certeza que deseja excluir este atleta?")) {
-                atletas = atletas.filter(a => a.id !== id);
-                salvarStorage();
-                renderAtletas();
+        // Arquivamento reversível: mantém atleta, presenças, graduações e documentos.
+        async function excluirAtleta(id) {
+            const a=atletas.find(x=>String(x.id)===String(id));
+            if(!a)return;
+            if(!supabaseClient || !usuarioOnline || papelOnline!=='administrador' || !sincronizacaoPronta){
+                alert('Entre como mestre e aguarde a sincronização antes de arquivar.');return;
             }
+            const arquivar=!a.arquivado;
+            if(!confirm(arquivar
+                ? `Arquivar ${a.nome}? O cadastro e todo o histórico serão mantidos. Ele não aparecerá nas chamadas do mestre. Atenção: o cadastro online precisa ser desativado separadamente no painel de aprovações.`
+                : `Reativar ${a.nome} no painel do mestre?`))return;
+            const anteriores=atletas;
+            atletas=atletas.map(x=>String(x.id)===String(id)
+                ? {...x,arquivado:arquivar,arquivadoEm:arquivar?new Date().toISOString():null}
+                : x);
+            try{
+                clearTimeout(timerSincronizacao);
+                const {data,error}=await supabaseClient.from('app_state')
+                    .update({data:dadosDoSistema(),updated_by:usuarioOnline.id,updated_at:new Date().toISOString()})
+                    .eq('id','main').select('id');
+                if(error || !data || data.length!==1)throw error||new Error('Banco não confirmou a gravação.');
+                const {data:leitura,error:erroLeitura}=await supabaseClient.from('app_state').select('data').eq('id','main').single();
+                if(erroLeitura)throw erroLeitura;
+                const confirmado=(leitura?.data?.atletas||[]).find(x=>String(x.id)===String(id));
+                if(!confirmado || !!confirmado.arquivado!==arquivar)throw new Error('Não foi possível confirmar o arquivamento no banco.');
+                salvarStorage();renderAtletas();
+                alert(arquivar?'Aluno arquivado no painel do mestre, com histórico preservado. Verifique também o cadastro online e a carteirinha.':'Aluno reativado no painel do mestre.');
+            }catch(e){atletas=anteriores;renderAtletas();alert('Operação não confirmada no Supabase: '+(e.message||e));}
         }
 
         // v25.21 — Professores independentes dos atletas, sincronizados no estado do sistema.
@@ -3275,7 +3234,7 @@ html { -webkit-text-size-adjust:100%; }
                 botao.setAttribute('aria-expanded', 'false');
                 const painel = document.createElement('div');
                 painel.className = 'hidden mt-3 space-y-2';
-                const alunosDaTurma = atletas.filter(a => a.turma === t.nome)
+                const alunosDaTurma = atletas.filter(a => a.turma === t.nome && !a.arquivado)
                     .sort((a, b) => String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR'));
                 if (!alunosDaTurma.length) {
                     const aviso = document.createElement('p');
@@ -3411,7 +3370,7 @@ html { -webkit-text-size-adjust:100%; }
             const container = document.getElementById('lista-chamada-atletas');
             container.innerHTML = '';
 
-            const atletasTurma = atletas.filter(a => a.turma === turma);
+            const atletasTurma = atletas.filter(a => a.turma === turma && !a.arquivado);
 
             if (atletasTurma.length === 0) {
                 container.innerHTML = `<p class="text-center py-6 text-gray-400 font-medium">Nenhum atleta vinculado a esta turma.</p>`;
