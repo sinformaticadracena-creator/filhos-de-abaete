@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.61.19 Painel do Professor — validação e diagnóstico da chamada</title>
+    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.61.20 Painel do Professor — consulta visível</title>
     <!-- Supabase JS: autenticação e banco de dados online -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Tailwind CSS -->
@@ -1857,7 +1857,7 @@ html { -webkit-text-size-adjust:100%; }
                 const b=document.createElement('button');b.type='button';b.textContent=rotulo;
                 b.addEventListener('click',acao);atalhos.append(b);
               }
-              atalho('👥 Consultar alunos',()=>{botao.click();resultado.scrollIntoView({behavior:'smooth',block:'nearest'});});
+              atalho('👥 Consultar alunos',async()=>{await abaeteConsultarAlunosTurma(id,resultado,botao);resultado.scrollIntoView({behavior:'smooth',block:'center'});});
               atalho('➕ Cadastrar aluno',()=>{if(cadastroProf.classList.contains('hidden'))abrirCadastro.click();cadastroProf.scrollIntoView({behavior:'smooth',block:'start'});});
               atalho('📝 Diário de aula',()=>{formulario.scrollIntoView({behavior:'smooth',block:'start'});});
               atalho('📋 Fazer chamada',()=>{const alvo=card.querySelector('.abaete-chamada-professor');if(alvo)alvo.scrollIntoView({behavior:'smooth',block:'start'});else {botao.click();resultado.scrollIntoView({behavior:'smooth',block:'start'});}});
@@ -2235,7 +2235,7 @@ html { -webkit-text-size-adjust:100%; }
         }
         async function abaeteConsultarAlunosTurma(turmaId,resultado,botao){
           // Consulta restrita ao ID autorizado; a RLS do Supabase e obrigatoria.
-          if(!usuarioOnline || !abaeteTurmasProfessor.includes(String(turmaId)))return;
+          if(!usuarioOnline || !abaeteTurmasProfessor.includes(String(turmaId))){resultado.textContent='Consulta não autorizada para esta turma. Entre novamente com o acesso do professor.';return;}
           botao.disabled=true;resultado.textContent='Consultando cadastros autorizados...';
           try{
             const {data,error}=await supabaseClient.from('cadastros_alunos')
@@ -2247,8 +2247,9 @@ html { -webkit-text-size-adjust:100%; }
             resultado.replaceChildren();
             const resumo=document.createElement('p');
             resumo.className='font-semibold';
-            resumo.textContent=(data||[]).length+' cadastro(s) aprovado(s) encontrado(s).';
+            resumo.textContent=(data||[]).length+' cadastro(s) aprovado(s) encontrado(s) na turma.';
             resultado.append(resumo);
+            if(!(data||[]).length){const orientacao=document.createElement('p');orientacao.className='p-3 rounded-lg border border-amber-200 bg-amber-50 text-amber-900';orientacao.textContent='Nenhum aluno aprovado foi retornado pela consulta online. A turma pode ter alunos no cadastro antigo (app_state), mas não na tabela cadastros_alunos, ou a política de acesso pode impedir a leitura. Não cadastre novamente os mesmos alunos antes de verificar com o administrador.';resultado.append(orientacao);return;}
             // Graduações pela mesma RPC autorizada já utilizada na chamada do professor.
             // Falha da RPC não bloqueia a consulta nem a edição dos alunos.
             const graduacoesLista=new Map();
