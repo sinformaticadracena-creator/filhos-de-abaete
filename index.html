@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.61.26 Arquivamento e carteirinha — Mestre</title>
+    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.61.27 Arquivamento online — Mestre</title>
     <!-- Supabase JS: autenticação e banco de dados online -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Tailwind CSS -->
@@ -1973,7 +1973,7 @@ html { -webkit-text-size-adjust:100%; }
               .select('id,data_aula').eq('turma_id',String(turmaId)).eq('professor_id',usuarioOnline.id).eq('data_aula',dataAula).maybeSingle();
             if(erroAula)throw erroAula;
             const {data:alunos,error:erroAlunos}=await supabaseClient.from('cadastros_alunos')
-              .select('id,nome_completo').eq('turma_id',String(turmaId)).eq('status','aprovado').order('nome_completo',{ascending:true});
+              .select('id,nome_completo').eq('turma_id',String(turmaId)).eq('status','aprovado').eq('arquivado',false).order('nome_completo',{ascending:true});
             if(erroAlunos)throw erroAlunos;
             let presencas=[];
             if(aula){
@@ -2253,6 +2253,7 @@ html { -webkit-text-size-adjust:100%; }
               .select('id,nome_completo,status,turma_id,telefone,endereco,bairro,nome_responsavel,cpf_responsavel,telefone_responsavel,parentesco_responsavel')
               .eq('turma_id',String(turmaId))
               .eq('status','aprovado')
+              .eq('arquivado',false)
               .order('nome_completo',{ascending:true});
             if(error)throw error;
             resultado.replaceChildren();
@@ -2430,7 +2431,7 @@ html { -webkit-text-size-adjust:100%; }
         async function carregarCadastrosOnline(){
           if(papelOnline!=='administrador')return;
           const el=document.getElementById('lista-cadastros-online');
-          const {data,error}=await supabaseClient.from('cadastros_alunos').select('id,nome_completo,cpf,foto_data,endereco,cpf_responsavel,parentesco_responsavel,data_nascimento,telefone,nome_responsavel,telefone_responsavel,bairro,status,criado_em').order('criado_em',{ascending:false});
+          const {data,error}=await supabaseClient.from('cadastros_alunos').select('id,nome_completo,cpf,foto_data,endereco,cpf_responsavel,parentesco_responsavel,data_nascimento,telefone,nome_responsavel,telefone_responsavel,bairro,status,arquivado,criado_em').order('criado_em',{ascending:false});
           if(error){el.textContent='Erro ao carregar: '+error.message;return;}
           const rows=data||[];
           document.getElementById('cadastros-pendentes').textContent=rows.filter(x=>x.status==='pendente').length;
@@ -2442,7 +2443,7 @@ html { -webkit-text-size-adjust:100%; }
             const botaoPrincipal=x.status==='aprovado'
               ?(vinculado?'<span class="px-3 py-2 text-sm font-bold text-green-700">Já incluído nos atletas</span>':`<button onclick="atualizarStatusCadastroOnline('${x.id}','aprovado')" class="px-3 py-2 rounded-lg bg-blue-700 text-white text-sm font-bold">Incluir nos atletas</button>`)
               :`<button onclick="atualizarStatusCadastroOnline('${x.id}','aprovado')" class="px-3 py-2 rounded-lg bg-emerald-700 text-white text-sm font-bold">Aprovar e incluir nos atletas</button>`;
-            return `<article class="border rounded-xl p-4"><div class="flex flex-wrap justify-between gap-2"><div><h3 class="font-bold">${escaparHTML(x.nome_completo)}</h3><p class="text-xs text-gray-500">Recebido em ${escaparHTML(new Date(x.criado_em).toLocaleString('pt-BR'))}</p></div><span class="text-xs font-bold">${x.status==='aprovado'?'Aprovado':x.status==='recusado'?'Recusado':'Pendente'}</span></div><div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3 text-sm">${[['Nascimento',x.data_nascimento],['Telefone',x.telefone],['Responsável',x.nome_responsavel],['Telefone responsável',x.telefone_responsavel],['Bairro',x.bairro]].filter(a=>a[1]).map(([k,v])=>`<div><span class="text-gray-500">${escaparHTML(k)}:</span> ${escaparHTML(String(v))}</div>`).join('')}</div><div class="flex flex-wrap gap-2 mt-4">${botaoPrincipal}<button onclick="atualizarStatusCadastroOnline('${x.id}','recusado')" class="px-3 py-2 rounded-lg bg-red-700 text-white text-sm font-bold">Recusar</button><button onclick="atualizarStatusCadastroOnline('${x.id}','pendente')" class="px-3 py-2 rounded-lg bg-gray-200 text-sm font-bold">Marcar pendente</button></div></article>`;
+            return `<article class="border rounded-xl p-4"><div class="flex flex-wrap justify-between gap-2"><div><h3 class="font-bold">${escaparHTML(x.nome_completo)}</h3><p class="text-xs text-gray-500">Recebido em ${escaparHTML(new Date(x.criado_em).toLocaleString('pt-BR'))}</p></div><span class="text-xs font-bold">${x.arquivado?'Arquivado (aprovação preservada)':x.status==='aprovado'?'Aprovado':x.status==='recusado'?'Recusado':'Pendente'}</span></div><div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3 text-sm">${[['Nascimento',x.data_nascimento],['Telefone',x.telefone],['Responsável',x.nome_responsavel],['Telefone responsável',x.telefone_responsavel],['Bairro',x.bairro]].filter(a=>a[1]).map(([k,v])=>`<div><span class="text-gray-500">${escaparHTML(k)}:</span> ${escaparHTML(String(v))}</div>`).join('')}</div><div class="flex flex-wrap gap-2 mt-4">${botaoPrincipal}<button onclick="atualizarStatusCadastroOnline('${x.id}','recusado')" class="px-3 py-2 rounded-lg bg-red-700 text-white text-sm font-bold">Recusar</button><button onclick="atualizarStatusCadastroOnline('${x.id}','pendente')" class="px-3 py-2 rounded-lg bg-gray-200 text-sm font-bold">Marcar pendente</button></div></article>`;
           }).join('');
         }
         async function atualizarStatusCadastroOnline(id,status){
@@ -2787,6 +2788,7 @@ html { -webkit-text-size-adjust:100%; }
                         <button onclick="excluirAtleta(${a.id})" title="${a.arquivado?'Reativar':'Arquivar'} aluno (sem apagar histórico)" class="text-amber-700 hover:text-amber-900 p-1.5 rounded-lg hover:bg-amber-50">
                             <i class="fa-solid ${a.arquivado?'fa-rotate-left':'fa-box-archive'}"></i> ${a.arquivado?'Reativar':'Arquivar'}
                         </button>
+                        ${a.arquivado && a.cadastroOnlineId ? `<button onclick="sincronizarArquivamentoOnlineExistente(${a.id})" title="Sincronizar situação arquivada com cadastro online" class="text-indigo-700 p-1.5 rounded-lg hover:bg-indigo-50"><i class="fa-solid fa-arrows-rotate"></i> Sincronizar online</button>` : ''}
                     </td>
                 `;
                 tbody.appendChild(tr);
@@ -3125,8 +3127,34 @@ html { -webkit-text-size-adjust:100%; }
             }
         }
 
-        // Arquivamento reversível com sincronização obrigatória da carteirinha já emitida.
-        // Não altera cadastros_alunos: essa integração exige validação separada das permissões/RLS.
+        // Sincronização por ID de cadastro, nunca por nome/CPF (podem existir homônimos).
+        async function abaeteAtualizarArquivoOnline(atleta, arquivar) {
+            if(!atleta.cadastroOnlineId) return {vinculado:false,alterou:false};
+            const id=String(atleta.cadastroOnlineId);
+            const {data:antes,error:erroAntes}=await supabaseClient.from('cadastros_alunos')
+                .select('id,arquivado').eq('id',id).maybeSingle();
+            if(erroAntes)throw new Error('Consulta do cadastro online: '+erroAntes.message);
+            if(!antes)throw new Error('Cadastro online vinculado não encontrado ou sem acesso.');
+            if(!!antes.arquivado===arquivar)return {vinculado:true,alterou:false};
+            const {data:alterados,error:erroAlteracao}=await supabaseClient.from('cadastros_alunos')
+                .update({arquivado:arquivar}).eq('id',id).select('id,arquivado');
+            if(erroAlteracao)throw new Error('Atualização online: '+erroAlteracao.message);
+            if(alterados?.length!==1 || !!alterados[0].arquivado!==arquivar)
+                throw new Error('O Supabase não confirmou a atualização do cadastro online.');
+            return {vinculado:true,alterou:true};
+        }
+        async function sincronizarArquivamentoOnlineExistente(id){
+            const a=atletas.find(x=>String(x.id)===String(id));
+            if(!a||!a.arquivado||!a.cadastroOnlineId)return alert('Aluno arquivado sem vínculo online confirmado.');
+            if(papelOnline!=='administrador'||!sincronizacaoPronta)return alert('Entre como mestre e aguarde a sincronização.');
+            if(!confirm(`Sincronizar o arquivamento de ${a.nome} com o cadastro online vinculado?`))return;
+            try{
+                await abaeteAtualizarArquivoOnline(a,true);
+                await carregarCadastrosOnline();
+                alert('Cadastro online marcado como arquivado. A aprovação e o histórico foram preservados.');
+            }catch(e){alert('Não foi possível sincronizar: '+(e.message||e));}
+        }
+        // Arquivamento reversível, sincronizado por vínculo explícito com cadastro online.
         async function excluirAtleta(id) {
             const a=atletas.find(x=>String(x.id)===String(id));
             if(!a)return;
@@ -3135,7 +3163,7 @@ html { -webkit-text-size-adjust:100%; }
             }
             const arquivar=!a.arquivado;
             if(!confirm(arquivar
-                ? `Arquivar ${a.nome}? O histórico será preservado e a carteirinha digital será desativada. O cadastro online ainda exige conferência separada.`
+                ? `Arquivar ${a.nome}? O histórico será preservado e a carteirinha digital será desativada. O cadastro online vinculado também será sincronizado.`
                 : `Reativar ${a.nome}? A carteirinha digital já emitida será reativada, se permitida.`))return;
             const anteriores=atletas;
             const anteriorCarteirinha=a.situacaoCarteirinha==='inativo'?'inativo':'ativo';
@@ -3162,12 +3190,15 @@ html { -webkit-text-size-adjust:100%; }
                     p_atleta_id:String(id),p_ativo:!arquivar
                 });
                 if(erroCart)throw new Error('Carteirinha não sincronizada: '+erroCart.message);
+                const online=await abaeteAtualizarArquivoOnline(a,arquivar);
                 salvarStorage();renderAtletas();
+                if(online.vinculado)carregarCadastrosOnline().catch(console.warn);
                 alert(arquivar
-                    ? 'Aluno arquivado e situação da carteirinha sincronizada no Supabase. Histórico preservado. ATENÇÃO: confira separadamente o cadastro online e a chamada do professor.'
-                    : 'Aluno reativado e situação da carteirinha sincronizada no Supabase. Confira o cadastro online.');
+                    ? 'Aluno arquivado e carteirinha sincronizada. Cadastro online vinculado atualizado, quando existente. Histórico preservado.'
+                    : 'Aluno reativado e carteirinha sincronizada. Cadastro online vinculado atualizado, quando existente.');
             }catch(e){
-                // Evita confirmar operação parcial. Se a gravação ocorreu, tenta restaurar o estado anterior.
+                // Evita confirmar operação parcial; tenta restaurar carteirinha e estado anterior.
+                try{await supabaseClient.rpc('sincronizar_situacao_carteirinha',{p_atleta_id:String(id),p_ativo:anteriorCarteirinha==='ativo'});}catch(_){console.warn('Restauro da carteirinha precisa de conferência.');}
                 atletas=anteriores;
                 let recuperado=!gravouEstado;
                 if(gravouEstado){
