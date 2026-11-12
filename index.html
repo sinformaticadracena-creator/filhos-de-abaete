@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.61.25 Arquivamento seguro — Mestre</title>
+    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.61.26 Arquivamento e carteirinha — Mestre</title>
     <!-- Supabase JS: autenticação e banco de dados online -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Tailwind CSS -->
@@ -3125,7 +3125,8 @@ html { -webkit-text-size-adjust:100%; }
             }
         }
 
-        // Arquivamento reversível: mantém atleta, presenças, graduações e documentos.
+        // Arquivamento reversível com sincronização obrigatória da carteirinha já emitida.
+        // Não altera cadastros_alunos: essa integração exige validação separada das permissões/RLS.
         async function excluirAtleta(id) {
             const a=atletas.find(x=>String(x.id)===String(id));
             if(!a)return;
@@ -3134,25 +3135,54 @@ html { -webkit-text-size-adjust:100%; }
             }
             const arquivar=!a.arquivado;
             if(!confirm(arquivar
-                ? `Arquivar ${a.nome}? O cadastro e todo o histórico serão mantidos. Ele não aparecerá nas chamadas do mestre. Atenção: o cadastro online precisa ser desativado separadamente no painel de aprovações.`
-                : `Reativar ${a.nome} no painel do mestre?`))return;
+                ? `Arquivar ${a.nome}? O histórico será preservado e a carteirinha digital será desativada. O cadastro online ainda exige conferência separada.`
+                : `Reativar ${a.nome}? A carteirinha digital já emitida será reativada, se permitida.`))return;
             const anteriores=atletas;
+            const anteriorCarteirinha=a.situacaoCarteirinha==='inativo'?'inativo':'ativo';
+            const novaSituacao=arquivar?'inativo':'ativo';
             atletas=atletas.map(x=>String(x.id)===String(id)
-                ? {...x,arquivado:arquivar,arquivadoEm:arquivar?new Date().toISOString():null}
+                ? {...x,arquivado:arquivar,arquivadoEm:arquivar?new Date().toISOString():null,
+                   situacaoCarteirinha:novaSituacao}
                 : x);
+            let gravouEstado=false;
             try{
                 clearTimeout(timerSincronizacao);
                 const {data,error}=await supabaseClient.from('app_state')
                     .update({data:dadosDoSistema(),updated_by:usuarioOnline.id,updated_at:new Date().toISOString()})
                     .eq('id','main').select('id');
                 if(error || !data || data.length!==1)throw error||new Error('Banco não confirmou a gravação.');
+                gravouEstado=true;
                 const {data:leitura,error:erroLeitura}=await supabaseClient.from('app_state').select('data').eq('id','main').single();
                 if(erroLeitura)throw erroLeitura;
                 const confirmado=(leitura?.data?.atletas||[]).find(x=>String(x.id)===String(id));
-                if(!confirmado || !!confirmado.arquivado!==arquivar)throw new Error('Não foi possível confirmar o arquivamento no banco.');
+                if(!confirmado || !!confirmado.arquivado!==arquivar || confirmado.situacaoCarteirinha!==novaSituacao)
+                    throw new Error('Não foi possível confirmar o arquivamento e a situação no banco.');
+                // RPC já usada no salvamento de atletas: atualiza carteirinha existente sem emitir token novo.
+                const {error:erroCart}=await supabaseClient.rpc('sincronizar_situacao_carteirinha',{
+                    p_atleta_id:String(id),p_ativo:!arquivar
+                });
+                if(erroCart)throw new Error('Carteirinha não sincronizada: '+erroCart.message);
                 salvarStorage();renderAtletas();
-                alert(arquivar?'Aluno arquivado no painel do mestre, com histórico preservado. Verifique também o cadastro online e a carteirinha.':'Aluno reativado no painel do mestre.');
-            }catch(e){atletas=anteriores;renderAtletas();alert('Operação não confirmada no Supabase: '+(e.message||e));}
+                alert(arquivar
+                    ? 'Aluno arquivado e situação da carteirinha sincronizada no Supabase. Histórico preservado. ATENÇÃO: confira separadamente o cadastro online e a chamada do professor.'
+                    : 'Aluno reativado e situação da carteirinha sincronizada no Supabase. Confira o cadastro online.');
+            }catch(e){
+                // Evita confirmar operação parcial. Se a gravação ocorreu, tenta restaurar o estado anterior.
+                atletas=anteriores;
+                let recuperado=!gravouEstado;
+                if(gravouEstado){
+                    try{
+                        const {data:restaurado,error:erroRestauro}=await supabaseClient.from('app_state')
+                            .update({data:dadosDoSistema(),updated_by:usuarioOnline.id,updated_at:new Date().toISOString()})
+                            .eq('id','main').select('id');
+                        recuperado=!erroRestauro && !!restaurado?.length;
+                    }catch(_){recuperado=false;}
+                }
+                renderAtletas();
+                alert('Operação não concluída: '+(e.message||e)+(recuperado
+                    ? '\nO estado anterior foi restaurado. Nenhum sucesso foi confirmado.'
+                    : '\nATENÇÃO: não foi possível confirmar a restauração. Recarregue a página e confira o Supabase antes de tentar novamente.'));
+            }
         }
 
         // v25.21 — Professores independentes dos atletas, sincronizados no estado do sistema.
@@ -4297,6 +4327,7 @@ async function v24Consultar(a){
     v24Status('Entre como administrador para emitir carteirinhas.');return;
   }
   const id=String(a.id);
+  if(a.arquivado || a.situacaoCarteirinha==='inativo'){v24TokenAtual=null;v24Desenhar(null);v24Status('Aluno arquivado ou inativo: carteirinha indisponível.');return;}
   try{
     const {data,error}=await supabaseClient.rpc('consultar_carteirinha_admin',{p_atleta_id:id});
     if(error){
@@ -4306,7 +4337,7 @@ async function v24Consultar(a){
     const r=Array.isArray(data)?data[0]:data;
     if(!r||!r.token){v24Status('Carteirinha ainda não emitida. Clique em Emitir / ativar.');return;}
     if(r.cancelada){v24Status('Carteirinha cancelada. Não imprima.');return;}
-    if(!r.ativa){v24Status('Carteirinha inativa. Clique em Emitir / ativar para reativar.');return;}
+    if(!r.ativa){v24TokenAtual=null;v24Desenhar(null);v24Status('Carteirinha inativa. Reative o cadastro do aluno antes de emitir.');return;}
     v24TokenAtual=r.token;v24Desenhar(r.token);v24Status('Carteirinha ativa e pronta para impressão. QR Code online disponível.');
   }catch(e){v24Status('Falha na consulta: '+(e.message||e));}
 }
@@ -4314,7 +4345,7 @@ async function v24Gerenciar(ativa){
   const id=document.getElementById('v23-seletor').value;
   if(!id||!usuarioOnline||papelOnline!=='administrador')return alert('Selecione um aluno e entre como administrador.');
   const atleta=atletas.find(x=>String(x.id)===String(id));
-  if(ativa && atleta?.situacaoCarteirinha==='inativo')return alert('Este aluno está inativo. Altere a situação no cadastro antes de ativar a carteirinha.');
+  if(ativa && (atleta?.arquivado || atleta?.situacaoCarteirinha==='inativo'))return alert('Este aluno está inativo. Altere a situação no cadastro antes de ativar a carteirinha.');
   if(!confirm(ativa?'Emitir ou reativar a carteirinha deste aluno?':'Desativar esta carteirinha?'))return;
   v24Status('Salvando situação no Supabase...');
   try{
