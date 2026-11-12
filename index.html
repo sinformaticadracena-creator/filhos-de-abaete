@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.61.20 Painel do Professor — consulta visível</title>
+    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.61.21 Consulta de alunos por turma — Mestre</title>
     <!-- Supabase JS: autenticação e banco de dados online -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Tailwind CSS -->
@@ -3195,6 +3195,73 @@ html { -webkit-text-size-adjust:100%; }
                         <span class="bg-gray-100 px-3 py-1 rounded-lg text-gray-800 font-black">${totalAlunos}</span>
                     </div>
                 `;
+                // v25.61.21: consulta local de alunos da turma no painel do Mestre.
+                // Usa a lista de atletas já carregada; não altera dados nem permissões.
+                const consulta = document.createElement('div');
+                consulta.className = 'border-t border-gray-100 pt-3';
+                const botao = document.createElement('button');
+                botao.type = 'button';
+                botao.className = 'w-full min-h-11 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm px-4 py-3';
+                botao.innerHTML = '<i class="fa-solid fa-users mr-2"></i>Ver alunos da turma';
+                botao.setAttribute('aria-expanded', 'false');
+                const painel = document.createElement('div');
+                painel.className = 'hidden mt-3 space-y-2';
+                const alunosDaTurma = atletas.filter(a => a.turma === t.nome)
+                    .sort((a, b) => String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR'));
+                if (!alunosDaTurma.length) {
+                    const aviso = document.createElement('p');
+                    aviso.className = 'text-sm text-gray-500 p-3 bg-gray-50 rounded-lg';
+                    aviso.textContent = 'Nenhum aluno vinculado a esta turma.';
+                    painel.appendChild(aviso);
+                } else {
+                    alunosDaTurma.forEach(a => {
+                        const linha = document.createElement('div');
+                        linha.className = 'flex items-center gap-3 p-3 bg-gray-50 border border-gray-200 rounded-xl min-w-0';
+                        const avatar = document.createElement('div');
+                        avatar.className = 'w-10 h-10 rounded-full bg-gray-200 text-gray-700 flex items-center justify-center font-bold text-xs shrink-0 overflow-hidden';
+                        avatar.textContent = String(a.nome || '?').slice(0, 2).toUpperCase();
+                        if (a.foto) {
+                            const img = document.createElement('img');
+                            img.className = 'w-full h-full object-cover';
+                            if (typeof caminhoFoto === 'function' && caminhoFoto(a.foto)) {
+                                img.dataset.storageFoto = a.foto;
+                            } else if (/^(https?:|data:image\/|blob:)/i.test(String(a.foto))) {
+                                img.src = a.foto;
+                            }
+                            if (img.src || img.dataset.storageFoto) {
+                                avatar.textContent = '';
+                                avatar.appendChild(img);
+                            }
+                        }
+                        const dados = document.createElement('div');
+                        dados.className = 'min-w-0 flex-1';
+                        const nome = document.createElement('p');
+                        nome.className = 'font-bold text-gray-800 text-sm break-words';
+                        nome.textContent = a.nome || 'Aluno sem nome';
+                        const detalhe = document.createElement('p');
+                        detalhe.className = 'text-xs text-gray-500 break-words';
+                        detalhe.textContent = [a.apelido, a.categoria].filter(Boolean).join(' • ');
+                        const graduacao = document.createElement('div');
+                        graduacao.className = 'mt-1 text-xs';
+                        graduacao.innerHTML = getGraduacaoBadge(a.graduacao || 'Sem graduação');
+                        dados.append(nome, detalhe, graduacao);
+                        linha.append(avatar, dados);
+                        painel.appendChild(linha);
+                    });
+                }
+                botao.addEventListener('click', () => {
+                    const abrir = painel.classList.contains('hidden');
+                    painel.classList.toggle('hidden', !abrir);
+                    botao.setAttribute('aria-expanded', String(abrir));
+                    botao.innerHTML = abrir
+                        ? '<i class="fa-solid fa-chevron-up mr-2"></i>Ocultar alunos'
+                        : '<i class="fa-solid fa-users mr-2"></i>Ver alunos da turma';
+                    if (abrir && typeof carregarFotosStorage === 'function') {
+                        try { carregarFotosStorage(painel); } catch (_) {}
+                    }
+                });
+                consulta.append(botao, painel);
+                card.appendChild(consulta);
                 grid.appendChild(card);
             });
         }
