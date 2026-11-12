@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.61.23 Vínculo explícito de cadastro online — Mestre</title>
+    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.61.24 Diagnóstico de vínculo online — Mestre</title>
     <!-- Supabase JS: autenticação e banco de dados online -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Tailwind CSS -->
@@ -2830,27 +2830,53 @@ html { -webkit-text-size-adjust:100%; }
             return Number.isNaN(data.getTime()) ? 'Não registrada' : data.toLocaleDateString('pt-BR', {timeZone:'America/Sao_Paulo'});
         }
 
+        // v25.61.24 — diagnóstico explícito de cadastros elegíveis para vínculo.
         async function prepararVinculoOnlineAtleta(atleta) {
             const caixa=document.getElementById('abaete-vinculo-online-box');
             const select=document.getElementById('abaete-vinculo-online');
-            caixa.classList.add('hidden');select.replaceChildren(new Option('Não vincular agora',''));
+            const ajuda=document.getElementById('abaete-vinculo-online-ajuda');
+            const textoOriginal='Escolha apenas se tiver certeza de qual cadastro corresponde a este atleta. Alunos com nomes ou CPFs repetidos devem ser diferenciados pelo identificador e pela turma atual. Não é feito vínculo automático.';
+            caixa.classList.add('hidden');
+            select.replaceChildren(new Option('Não vincular agora',''));
+            ajuda.textContent=textoOriginal;
             if(!atleta || atleta.cadastroOnlineId || papelOnline!=='administrador' || !supabaseClient) return;
             caixa.classList.remove('hidden');
-            select.replaceChildren(new Option('Carregando cadastros online...',''));
+            select.disabled=true;
+            select.replaceChildren(new Option('Consultando cadastros online...',''));
             try {
+                // Buscar apenas colunas necessárias; não mostrar cadastros de terceiros
+                // que tenham CPF diferente do atleta local.
                 const {data,error}=await supabaseClient.from('cadastros_alunos')
-                    .select('id,nome_completo,cpf,turma_id,status').eq('status','aprovado').limit(500);
+                    .select('id,nome_completo,cpf,turma_id,status')
+                    .eq('status','aprovado').limit(1000);
                 if(error)throw error;
                 select.replaceChildren(new Option('Não vincular agora',''));
                 const vinculados=new Set(atletas.filter(a=>a.cadastroOnlineId).map(a=>String(a.cadastroOnlineId)));
+                const cpfLocal=String(atleta.cpf||'').replace(/\D/g,'');
+                const normalizarNome=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
+                let jaVinculados=0, cpfDiferente=0, elegiveis=0, semCpf=0;
                 for(const c of data||[]) {
-                    if(vinculados.has(String(c.id)))continue;
+                    if(vinculados.has(String(c.id))){jaVinculados++;continue;}
                     const cpf=String(c.cpf||'').replace(/\D/g,'');
-                    const cpfLocal=String(atleta.cpf||'').replace(/\D/g,'');
-                    if(cpfLocal && cpf && cpf!==cpfLocal)continue;
+                    // CPF diferente é incompatível. Quando CPF não está preenchido,
+                    // só sugerir candidato com o mesmo nome, exigindo escolha explícita.
+                    if(cpfLocal && cpf && cpf!==cpfLocal){cpfDiferente++;continue;}
+                    if((!cpfLocal || !cpf) && normalizarNome(c.nome_completo)!==normalizarNome(atleta.nome)){
+                        semCpf++;continue;
+                    }
                     select.add(new Option(`${c.nome_completo} | turma atual: ${c.turma_id||'sem turma'} | ID: ${c.id}`,String(c.id)));
+                    elegiveis++;
                 }
-            }catch(e){select.replaceChildren(new Option('Consulta indisponível; não vincular',''));console.error('Consulta dos vínculos online:',e);}
+                if(!elegiveis){
+                    ajuda.textContent=`Nenhum cadastro online elegível encontrado entre ${(data||[]).length} cadastro(s) aprovado(s) visível(is). Já vinculados: ${jaVinculados}; CPF diferente: ${cpfDiferente}; sem CPF correspondente/nome diferente: ${semCpf}. Confira o CPF e o nome do cadastro online no Supabase. Nenhum vínculo foi realizado.`;
+                } else {
+                    ajuda.textContent=`${elegiveis} cadastro(s) compatível(is) disponível(is). Confira cuidadosamente nome, turma e ID antes de vincular. ${textoOriginal}`;
+                }
+            }catch(e){
+                select.replaceChildren(new Option('Consulta indisponível; não vincular',''));
+                ajuda.textContent='Não foi possível consultar os cadastros online: '+(e?.message||String(e))+'. Nenhum vínculo foi realizado. Confira as permissões de leitura no Supabase.';
+                console.error('Consulta dos vínculos online:',e);
+            }finally{select.disabled=false;}
         }
 
         function openModalAtleta(id = null) {
