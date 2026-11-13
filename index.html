@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.61.27 Arquivamento online — Mestre</title>
+    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.61.28 Proteção de chamada — Mestre</title>
     <!-- Supabase JS: autenticação e banco de dados online -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Tailwind CSS -->
@@ -2046,6 +2046,17 @@ html { -webkit-text-size-adjust:100%; }
               if(!confirm('Salvar chamada de '+dataAula+' para '+linhas.length+' aluno(s)?'))return;
               salvar.disabled=true;msg.textContent='Salvando presenças...';
               try{
+                // v25.61.28: revalidar os alunos no servidor antes de salvar.
+                // Impede que uma chamada aberta antes de um arquivamento registre o aluno depois dele.
+                const {data:ativosAgora,error:erroAtivos}=await supabaseClient.from('cadastros_alunos')
+                  .select('id').eq('turma_id',String(turmaId)).eq('status','aprovado').eq('arquivado',false);
+                if(erroAtivos)throw erroAtivos;
+                const idsAtivos=new Set((ativosAgora||[]).map(x=>String(x.id)));
+                if(linhas.some(({aluno})=>!idsAtivos.has(String(aluno.id)))){
+                  msg.textContent='A lista da turma mudou (aluno arquivado, desativado ou removido). Atualize a lista da data antes de salvar a chamada.';
+                  msg.setAttribute('role','alert');
+                  return;
+                }
                 // Upsert por aula e aluno_id (UUID do cadastro em texto). A RLS valida aula, professor e turma.
                 const registros=linhas.map(({aluno,sel})=>({aula_id:aulaParaSalvar.id,aluno_id:String(aluno.id),situacao:sel.value}));
                 const {error}=await supabaseClient.from('abaete_presencas_alunos')
