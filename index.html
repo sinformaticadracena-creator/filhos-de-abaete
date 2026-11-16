@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.61.28 Proteção de chamada — Mestre</title>
+    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.62.0 Preparação de múltiplas turmas — Mestre</title>
     <!-- Supabase JS: autenticação e banco de dados online -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Tailwind CSS -->
@@ -1117,6 +1117,17 @@ html { -webkit-text-size-adjust:100%; }
           <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
             <div class="flex flex-wrap items-center justify-between gap-3"><div><h2 class="text-2xl font-bold">Cadastros online de alunos</h2><p class="text-sm text-gray-500 mt-1">Atualização em tempo real.</p></div><span id="cadastros-online-status" class="text-xs font-bold rounded-full bg-amber-100 text-amber-800 px-3 py-1">Conectando...</span></div>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-5"><div class="rounded-xl bg-amber-50 p-4"><div class="text-xs uppercase font-bold text-amber-800">Pendentes</div><div id="cadastros-pendentes" class="text-2xl font-black">0</div></div><div class="rounded-xl bg-emerald-50 p-4"><div class="text-xs uppercase font-bold text-emerald-800">Aprovados</div><div id="cadastros-aprovados" class="text-2xl font-black">0</div></div><div class="rounded-xl bg-red-50 p-4"><div class="text-xs uppercase font-bold text-red-800">Recusados</div><div id="cadastros-recusados" class="text-2xl font-black">0</div></div></div>
+            <div id="abaete-multiturmas-admin" class="mt-6 rounded-2xl border border-blue-200 bg-blue-50 p-4 sm:p-5 space-y-3">
+              <h3 class="font-black text-lg text-blue-900">Turmas adicionais do aluno</h3>
+              <p class="text-sm text-blue-900">Vincule um cadastro online aprovado a outras turmas, sem alterar sua turma principal. A participação nas chamadas dos professores utiliza a consulta segura por turma. A edição de dados dos alunos de turmas adicionais permanece com o mestre.</p>
+              <label class="block text-sm font-bold" for="abaete-multi-aluno">Aluno</label>
+              <select id="abaete-multi-aluno" class="w-full border rounded-lg p-3 bg-white" onchange="abaeteMultiCarregar()"><option value="">Selecione um aluno aprovado</option></select>
+              <label class="block text-sm font-bold" for="abaete-multi-turma">Turma adicional</label>
+              <select id="abaete-multi-turma" class="w-full border rounded-lg p-3 bg-white"><option value="">Selecione a turma</option></select>
+              <button type="button" onclick="abaeteMultiAdicionar()" class="px-4 py-3 rounded-xl bg-blue-800 text-white font-bold">Adicionar turma</button>
+              <div id="abaete-multi-lista" class="space-y-2 text-sm" aria-live="polite"></div>
+              <p id="abaete-multi-status" class="text-sm font-semibold" role="status"></p>
+            </div>
             <div id="lista-cadastros-online" class="mt-5 space-y-3"><p class="text-sm text-gray-500">Carregando cadastros...</p></div>
           </div>
         </section>
@@ -1972,8 +1983,7 @@ html { -webkit-text-size-adjust:100%; }
             const {data:aula,error:erroAula}=await supabaseClient.from('abaete_aulas_professores')
               .select('id,data_aula').eq('turma_id',String(turmaId)).eq('professor_id',usuarioOnline.id).eq('data_aula',dataAula).maybeSingle();
             if(erroAula)throw erroAula;
-            const {data:alunos,error:erroAlunos}=await supabaseClient.from('cadastros_alunos')
-              .select('id,nome_completo').eq('turma_id',String(turmaId)).eq('status','aprovado').eq('arquivado',false).order('nome_completo',{ascending:true});
+            const {data:alunos,error:erroAlunos}=await supabaseClient.rpc('abaete_alunos_turma_multiplas',{p_turma_id:String(turmaId)});
             if(erroAlunos)throw erroAlunos;
             let presencas=[];
             if(aula){
@@ -2048,8 +2058,7 @@ html { -webkit-text-size-adjust:100%; }
               try{
                 // v25.61.28: revalidar os alunos no servidor antes de salvar.
                 // Impede que uma chamada aberta antes de um arquivamento registre o aluno depois dele.
-                const {data:ativosAgora,error:erroAtivos}=await supabaseClient.from('cadastros_alunos')
-                  .select('id').eq('turma_id',String(turmaId)).eq('status','aprovado').eq('arquivado',false);
+                const {data:ativosAgora,error:erroAtivos}=await supabaseClient.rpc('abaete_alunos_turma_multiplas',{p_turma_id:String(turmaId)});
                 if(erroAtivos)throw erroAtivos;
                 const idsAtivos=new Set((ativosAgora||[]).map(x=>String(x.id)));
                 if(linhas.some(({aluno})=>!idsAtivos.has(String(aluno.id)))){
@@ -2085,8 +2094,7 @@ html { -webkit-text-size-adjust:100%; }
               aulas.push(...(data||[]));if(!data||data.length<500)break;
               if(pagina===19)throw new Error('Período muito extenso. Selecione um intervalo menor (limite de 10.000 aulas).');
             }
-            const {data:alunos,error:erroAlunos}=await supabaseClient.from('cadastros_alunos')
-              .select('id,nome_completo').eq('turma_id',String(turmaId)).eq('status','aprovado').order('nome_completo');
+            const {data:alunos,error:erroAlunos}=await supabaseClient.rpc('abaete_alunos_turma_multiplas',{p_turma_id:String(turmaId)});
             if(erroAlunos)throw erroAlunos;
             const presencas=[];
             for(let i=0;i<aulas.length;i+=100){
@@ -2260,12 +2268,7 @@ html { -webkit-text-size-adjust:100%; }
           if(!usuarioOnline || !abaeteTurmasProfessor.includes(String(turmaId))){resultado.textContent='Consulta não autorizada para esta turma. Entre novamente com o acesso do professor.';return;}
           botao.disabled=true;resultado.textContent='Consultando cadastros autorizados...';
           try{
-            const {data,error}=await supabaseClient.from('cadastros_alunos')
-              .select('id,nome_completo,status,turma_id,telefone,endereco,bairro,nome_responsavel,cpf_responsavel,telefone_responsavel,parentesco_responsavel')
-              .eq('turma_id',String(turmaId))
-              .eq('status','aprovado')
-              .eq('arquivado',false)
-              .order('nome_completo',{ascending:true});
+            const {data,error}=await supabaseClient.rpc('abaete_alunos_turma_multiplas',{p_turma_id:String(turmaId)});
             if(error)throw error;
             resultado.replaceChildren();
             const resumo=document.createElement('p');
@@ -2301,6 +2304,12 @@ html { -webkit-text-size-adjust:100%; }
               const editar=document.createElement('button');
               editar.type='button';editar.className='inline-block text-blue-700 font-semibold underline py-2';
               editar.textContent='Editar dados';
+              if(String(aluno.turma_id)!==String(turmaId)){
+                editar.disabled=true;
+                editar.textContent='Edição pelo mestre (turma adicional)';
+                editar.className='text-xs text-gray-500 font-semibold';
+                editar.title='O professor pode consultar e registrar frequência; alterações de cadastro em turma adicional são realizadas pelo mestre.';
+              }
               const formularioEdicao=document.createElement('form');
               formularioEdicao.className='hidden mt-3 space-y-2 border-t pt-3';
               const campos=[
@@ -2438,6 +2447,75 @@ html { -webkit-text-size-adjust:100%; }
           }catch(ex){erro.textContent='Não foi possível enviar: '+(ex.message||String(ex));}finally{btn.disabled=false;btn.textContent='Enviar para aprovação';}
         }
         function escaparHTML(v){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+        // v25.62.4: vínculos adicionais administrados exclusivamente pelo mestre.
+        // Não modifica a turma principal, presenças, carteirinhas nem permissões dos professores.
+        // v25.62.4: cache de vínculos do Supabase para a chamada administrativa.
+        let abaeteVinculosAdicionaisCache = new Map();
+        async function abaeteAtualizarVinculosAdicionais(){
+          if(papelOnline!=='administrador'||!supabaseClient)return;
+          const {data,error}=await supabaseClient.from('abaete_alunos_turmas').select('aluno_id,turma_id');
+          if(error){console.warn('Vínculos adicionais indisponíveis:',error.message);return;}
+          const mapa=new Map();
+          for(const item of data||[]){
+            const chave=String(item.aluno_id);
+            if(!mapa.has(chave))mapa.set(chave,new Set());
+            mapa.get(chave).add(String(item.turma_id));
+          }
+          abaeteVinculosAdicionaisCache=mapa;
+        }
+        function abaeteAtletaPertenceTurma(a,nomeTurma){
+          if(a.turma===nomeTurma)return true;
+          const onlineId=a.cadastroOnlineId;
+          if(!onlineId)return false;
+          const ids=abaeteVinculosAdicionaisCache.get(String(onlineId));
+          return !!ids&&turmas.some(t=>t.nome===nomeTurma&&ids.has(String(t.id)));
+        }
+        async function abaeteMultiPreparar(){
+          if(papelOnline!=='administrador'||!supabaseClient)return;
+          const aluno=document.getElementById('abaete-multi-aluno'), turma=document.getElementById('abaete-multi-turma');
+          const selecionado=aluno.value;
+          const {data,error}=await supabaseClient.from('cadastros_alunos').select('id,nome_completo,turma_id').eq('status','aprovado').eq('arquivado',false).order('nome_completo');
+          if(error){document.getElementById('abaete-multi-status').textContent='Erro ao carregar alunos: '+error.message;return;}
+          aluno.replaceChildren(new Option('Selecione um aluno aprovado',''));
+          for(const a of data||[])aluno.add(new Option(a.nome_completo+' — principal: '+(turmas.find(t=>String(t.id)===String(a.turma_id))?.nome||a.turma_id||'não definida'),a.id));
+          if([...aluno.options].some(o=>o.value===selecionado))aluno.value=selecionado;
+          turma.replaceChildren(new Option('Selecione a turma',''));
+          for(const t of turmas)turma.add(new Option(t.nome,String(t.id)));
+          await abaeteAtualizarVinculosAdicionais();
+          await abaeteMultiCarregar();
+        }
+        async function abaeteMultiCarregar(){
+          const alunoId=document.getElementById('abaete-multi-aluno').value;
+          const lista=document.getElementById('abaete-multi-lista');lista.replaceChildren();
+          if(!alunoId)return;
+          const {data,error}=await supabaseClient.from('abaete_alunos_turmas').select('turma_id').eq('aluno_id',alunoId);
+          if(error){lista.textContent='Não foi possível consultar vínculos. Verifique se o SQL foi instalado: '+error.message;return;}
+          if(!data?.length){lista.textContent='Nenhuma turma adicional vinculada.';return;}
+          for(const item of data){
+            const linha=document.createElement('div');linha.className='flex items-center justify-between gap-3 rounded-lg border bg-white p-3';
+            const nome=document.createElement('span');nome.textContent=turmas.find(t=>String(t.id)===String(item.turma_id))?.nome||'Turma ID '+item.turma_id;
+            const botao=document.createElement('button');botao.type='button';botao.className='px-3 py-2 rounded-lg bg-red-100 text-red-800 font-bold';botao.textContent='Remover vínculo';
+            botao.addEventListener('click',()=>abaeteMultiRemover(alunoId,item.turma_id));linha.append(nome,botao);lista.append(linha);
+          }
+        }
+        async function abaeteMultiAdicionar(){
+          if(papelOnline!=='administrador')return;
+          const alunoId=document.getElementById('abaete-multi-aluno').value,turmaId=document.getElementById('abaete-multi-turma').value;
+          const status=document.getElementById('abaete-multi-status');
+          if(!alunoId||!turmaId){status.textContent='Selecione o aluno e a turma.';return;}
+          const {data:aluno,error:erroAluno}=await supabaseClient.from('cadastros_alunos').select('turma_id,status,arquivado').eq('id',alunoId).single();
+          if(erroAluno||!aluno||aluno.status!=='aprovado'||aluno.arquivado){status.textContent='Cadastro não está aprovado e ativo.';return;}
+          if(String(aluno.turma_id)===String(turmaId)){status.textContent='Esta já é a turma principal do aluno.';return;}
+          const {error}=await supabaseClient.from('abaete_alunos_turmas').insert({aluno_id:alunoId,turma_id:turmaId});
+          status.textContent=error?'Erro ao vincular: '+error.message:'Turma adicional vinculada com sucesso.';
+          if(!error){await abaeteAtualizarVinculosAdicionais();await abaeteMultiCarregar();}
+        }
+        async function abaeteMultiRemover(alunoId,turmaId){
+          if(papelOnline!=='administrador'||!confirm('Remover este vínculo adicional? O histórico de presença não será apagado.'))return;
+          const {error}=await supabaseClient.from('abaete_alunos_turmas').delete().eq('aluno_id',alunoId).eq('turma_id',turmaId);
+          document.getElementById('abaete-multi-status').textContent=error?'Erro ao remover: '+error.message:'Vínculo adicional removido.';
+          if(!error){await abaeteAtualizarVinculosAdicionais();await abaeteMultiCarregar();}
+        }
         async function iniciarAtualizacaoCadastrosOnline(){await carregarCadastrosOnline();if(canalCadastrosOnline)await supabaseClient.removeChannel(canalCadastrosOnline);canalCadastrosOnline=supabaseClient.channel('cadastros-alunos-admin').on('postgres_changes',{event:'*',schema:'public',table:'cadastros_alunos'},()=>carregarCadastrosOnline()).subscribe(status=>{const el=document.getElementById('cadastros-online-status');if(el){el.textContent=status==='SUBSCRIBED'?'Tempo real conectado':status==='CHANNEL_ERROR'?'Erro no tempo real':'Conectando...';el.className='text-xs font-bold rounded-full px-3 py-1 '+(status==='SUBSCRIBED'?'bg-emerald-100 text-emerald-800':'bg-amber-100 text-amber-800');}});}
         async function carregarCadastrosOnline(){
           if(papelOnline!=='administrador')return;
@@ -2693,7 +2771,8 @@ html { -webkit-text-size-adjust:100%; }
             if (abaId === 'documentos') { preencherAtletasDocumentos(); atualizarListaFichaInscricao(); renderDocumentos(); }
             if (abaId === 'evolucao') { preencherAtletasEvolucao(); renderEvolucao(); }
             if (abaId === 'backup') atualizarStatusBackup();
-            if (abaId === 'cadastros-online') carregarCadastrosOnline();
+            if (abaId === 'cadastros-online') { carregarCadastrosOnline(); abaeteMultiPreparar(); }
+            if (papelOnline === 'administrador' && abaId !== 'cadastros-online') { abaeteAtualizarVinculosAdicionais().catch(console.warn); }
             if (abaId === 'turmas' && papelOnline==='administrador') { carregarSolicitacoesProfessores(); abaeteListarAcessosProfessores(); }
         }
 
@@ -2757,7 +2836,7 @@ html { -webkit-text-size-adjust:100%; }
 
             const filtrados = atletas.filter(a => {
                 const matchBusca = a.nome.toLowerCase().includes(busca) || (a.apelido && a.apelido.toLowerCase().includes(busca));
-                const matchTurma = !turmaFiltro || a.turma === turmaFiltro;
+                const matchTurma = !turmaFiltro || abaeteAtletaPertenceTurma(a,turmaFiltro);
                 const matchCat = !catFiltro || a.categoria === catFiltro;
                 return matchBusca && matchTurma && matchCat && (mostrarArquivados ? !!a.arquivado : !a.arquivado);
             });
@@ -3274,7 +3353,7 @@ html { -webkit-text-size-adjust:100%; }
 
             renderProfessores();
             turmas.forEach(t => {
-                const totalAlunos = atletas.filter(a => a.turma === t.nome).length;
+                const totalAlunos = atletas.filter(a => abaeteAtletaPertenceTurma(a,t.nome)).length;
                 const card = document.createElement('div');
                 card.className = "bg-white p-6 rounded-2xl shadow-sm border border-gray-200 flex flex-col justify-between space-y-4";
                 card.innerHTML = `
@@ -3306,7 +3385,7 @@ html { -webkit-text-size-adjust:100%; }
                 botao.setAttribute('aria-expanded', 'false');
                 const painel = document.createElement('div');
                 painel.className = 'hidden mt-3 space-y-2';
-                const alunosDaTurma = atletas.filter(a => a.turma === t.nome && !a.arquivado)
+                const alunosDaTurma = atletas.filter(a => abaeteAtletaPertenceTurma(a,t.nome) && !a.arquivado)
                     .sort((a, b) => String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR'));
                 if (!alunosDaTurma.length) {
                     const aviso = document.createElement('p');
@@ -3437,12 +3516,13 @@ html { -webkit-text-size-adjust:100%; }
 
         // CHAMADA / FREQUÊNCIA
         function carregarListaChamada() {
+            // Vínculos adicionais atualizados quando o mestre acessa Cadastros online.
             const turma = document.getElementById('chamada-turma-select').value;
             const data = document.getElementById('chamada-data').value;
             const container = document.getElementById('lista-chamada-atletas');
             container.innerHTML = '';
 
-            const atletasTurma = atletas.filter(a => a.turma === turma && !a.arquivado);
+            const atletasTurma = atletas.filter(a => abaeteAtletaPertenceTurma(a,turma) && !a.arquivado);
 
             if (atletasTurma.length === 0) {
                 container.innerHTML = `<p class="text-center py-6 text-gray-400 font-medium">Nenhum atleta vinculado a esta turma.</p>`;
@@ -3728,7 +3808,7 @@ html { -webkit-text-size-adjust:100%; }
             containerTurmas.innerHTML = '';
             
             turmas.forEach(t => {
-                const total = atletas.filter(a => a.turma === t.nome).length;
+                const total = atletas.filter(a => abaeteAtletaPertenceTurma(a,t.nome)).length;
                 const div = document.createElement('div');
                 div.className = "flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100";
                 div.innerHTML = `
@@ -3814,7 +3894,7 @@ html { -webkit-text-size-adjust:100%; }
                 nomeResponsavel || 'Mestre / Instrutor Responsável';
 
             // Filtro atletas
-            const atletasRel = turmaSel === 'todas' ? atletas : atletas.filter(a => a.turma === turmaSel);
+            const atletasRel = turmaSel === 'todas' ? atletas : atletas.filter(a => abaeteAtletaPertenceTurma(a,turmaSel));
             document.getElementById('pdf-quant-atletas').innerText = atletasRel.length;
 
             // Integra chamadas locais e registros online por turma, mês e data.
