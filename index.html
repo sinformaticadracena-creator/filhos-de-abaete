@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.62.6 Correção da turma principal — Mestre</title>
+    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.62.7 Correção da turma principal — Mestre</title>
     <!-- Supabase JS: autenticação e banco de dados online -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Tailwind CSS -->
@@ -3138,7 +3138,7 @@ html { -webkit-text-size-adjust:100%; }
                 cpf: document.getElementById('atleta-cpf').value,
                 categoria: document.getElementById('atleta-categoria').value,
                 graduacao: document.getElementById('atleta-graduacao').value,
-                turma: atletaAnterior?.turma || document.getElementById('atleta-turma').value,
+                turma: String(atletaAnterior?.turma||'').trim() || document.getElementById('atleta-turma').value,
                 nascimento: document.getElementById('atleta-nascimento').value,
                 endereco: document.getElementById('atleta-endereco').value,
                 bairro: document.getElementById('atleta-bairro').value.trim(),
@@ -3152,9 +3152,12 @@ html { -webkit-text-size-adjust:100%; }
                 foto: fotoTempBase64 || (id ? (atletas.find(a => a.id == id) || {}).foto || '' : '')
             };
 
-            // Transferências e novos vínculos desativados. Mantém vínculos já existentes.
-            if (atletaAnterior && String(atletaAnterior.turma||'')!==String(atletaData.turma||''))
-                throw new Error('A mudança de turma foi desativada. Arquive o cadastro e solicite uma nova inscrição.');
+            // Primeira atribuição pelo mestre: permitida somente quando a turma anterior está vazia.
+            // Transferência de uma turma já definida continua bloqueada.
+            const turmaAnteriorNormalizada=String(atletaAnterior?.turma||'').trim();
+            const turmaNovaNormalizada=String(atletaData.turma||'').trim();
+            if (atletaAnterior && turmaAnteriorNormalizada && turmaAnteriorNormalizada!==turmaNovaNormalizada)
+                throw new Error('A mudança de turma já definida foi desativada. Arquive o cadastro e solicite uma nova inscrição.');
             if (!supabaseClient || !usuarioOnline || !sincronizacaoPronta || papelOnline !== 'administrador') {
                 throw new Error('Entre como administrador e aguarde o carregamento dos dados do Supabase.');
             }
