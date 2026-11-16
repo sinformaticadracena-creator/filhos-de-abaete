@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.62.9 Aviso de aula já registrada — Mestre</title>
+    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.62.10 Edição de diário — Mestre</title>
     <!-- Supabase JS: autenticação e banco de dados online -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Tailwind CSS -->
@@ -1916,7 +1916,12 @@ html { -webkit-text-size-adjust:100%; }
                     .eq('data_aula',dataAula.value).order('id',{ascending:true}).limit(1);
                   if(erroBusca)throw erroBusca;
                   if(jaExistentes?.length){
-                    saida.textContent='Aula já registrada! Já existe uma aula deste professor para esta turma e data. Nenhuma aula duplicada foi criada. Consulte o histórico abaixo ou prossiga para a chamada.';
+                    const {error:erroEdicao}=await supabaseClient.from('abaete_aulas_professores')
+                      .update({presenca_professor:pres.value.toLowerCase(),conteudo:conteudo.value.trim()})
+                      .eq('id',jaExistentes[0].id).eq('turma_id',String(id)).eq('professor_id',usuarioOnline.id)
+                      .select('id').single();
+                    if(erroEdicao)throw erroEdicao;
+                    saida.textContent='Aula atualizada com sucesso. Nenhuma duplicata foi criada.';
                     await abaeteListarAulasProfessor(id,historico,consultar);
                     return;
                   }
@@ -1939,6 +1944,34 @@ html { -webkit-text-size-adjust:100%; }
                 }
                 finally{salvar.disabled=false;}
               });
+              // Ao escolher uma data com diário existente, carrega os dados para edição.
+              let sequenciaEdicao=0;
+              async function carregarDiarioDaData(){
+                const seq=++sequenciaEdicao;
+                pres.value='Presente';conteudo.value='';
+                if(!dataAula.value)return;
+                saida.textContent='Verificando diário desta data...';
+                const dataSelecionada=dataAula.value;
+                const {data:existentes,error}=await supabaseClient.from('abaete_aulas_professores')
+                  .select('id,presenca_professor,conteudo').eq('turma_id',String(id))
+                  .eq('professor_id',usuarioOnline.id).eq('data_aula',dataSelecionada)
+                  .order('id',{ascending:true}).limit(1);
+                if(seq!==sequenciaEdicao)return;
+                if(error){saida.textContent='Não foi possível consultar o diário: '+error.message;return;}
+                if(existentes?.length){
+                  const aula=existentes[0];
+                  pres.value=({'presente':'Presente','ausente':'Ausente','substituído':'Substituído','substituido':'Substituído'})[String(aula.presenca_professor||'').toLowerCase()]||'Presente';
+                  conteudo.value=aula.conteudo||'';
+                  salvar.textContent='Salvar alterações';
+                  saida.textContent='Diário existente carregado. Edite o conteúdo e clique em Salvar alterações.';
+                }else{
+                  salvar.textContent='Salvar nova aula';
+                  saida.textContent='Nenhum diário nesta data. Você pode registrar uma nova aula.';
+                }
+              }
+              dataAula.addEventListener('change',carregarDiarioDaData);
+              // Exibe a edição mesmo sem trocar a data manualmente.
+              carregarDiarioDaData();
               consultar.addEventListener('click',()=>abaeteListarAulasProfessor(id,historico,consultar));
               const acoesDiario=document.createElement('div');acoesDiario.className='abaete-diario-acoes';acoesDiario.append(previsualizar,salvar,consultar);
               formulario.append(cab,lblData,lblPres,lblConteudo,acoesDiario,saida,aviso,historico);
@@ -2279,7 +2312,18 @@ html { -webkit-text-size-adjust:100%; }
               const item=document.createElement('div');item.className='border rounded p-2 bg-white abaete-diario-registro';
               const cab=document.createElement('strong');cab.textContent=(/^\d{4}-\d{2}-\d{2}$/.test(aula.data_aula||'') ? aula.data_aula.slice(8,10)+'/'+aula.data_aula.slice(5,7)+'/'+aula.data_aula.slice(0,4) : (aula.data_aula||'Sem data'))+' — '+(aula.presenca_professor||'');
               const texto=document.createElement('p');texto.className='whitespace-pre-wrap';texto.textContent=aula.conteudo||'Sem conteúdo';
-              item.append(cab,texto);resultado.append(item);
+              const editar=document.createElement('button');editar.type='button';
+              editar.className='mt-2 px-3 py-2 bg-blue-700 text-white rounded-lg text-xs font-bold';
+              editar.textContent='Editar esta aula';
+              editar.addEventListener('click',()=>{
+                const painel=resultado.closest('.abaete-diario-v2541');
+                const campoData=painel?.querySelector('input[type="date"]');
+                if(!campoData)return;
+                campoData.value=aula.data_aula;
+                campoData.dispatchEvent(new Event('change'));
+                painel.scrollIntoView({behavior:'smooth',block:'start'});
+              });
+              item.append(cab,texto,editar);resultado.append(item);
             }
           }catch(e){resultado.textContent='Não foi possível consultar: '+(e.message||String(e));}
           finally{botao.disabled=false;}
@@ -3687,6 +3731,7 @@ html { -webkit-text-size-adjust:100%; }
                             <span class="px-3 py-1 bg-abaete-red/10 text-abaete-red font-bold text-xs rounded-full uppercase">${d.turma}</span>
                             <span class="text-xs font-semibold text-gray-400"><i class="fa-solid fa-calendar"></i> ${d.data.split('-').reverse().join('/')}</span>
                         </div>
+                        <button onclick="editarDiarioLocal(${d.id})" class="text-blue-700 hover:text-blue-900 text-xs font-bold mr-3"><i class="fa-solid fa-pen"></i> Editar</button>
                         <button onclick="excluirDiario(${d.id})" class="text-red-500 hover:text-red-700 text-xs font-bold"><i class="fa-solid fa-trash"></i> Excluir</button>
                     </div>
                     <h3 class="font-bold text-gray-800 text-base">${d.tema}</h3>
@@ -3797,7 +3842,19 @@ html { -webkit-text-size-adjust:100%; }
             }
         }
 
+        let diarioLocalEmEdicao = null;
+        function editarDiarioLocal(id) {
+            const registro=diarios.find(d=>String(d.id)===String(id));
+            if(!registro)return;
+            openModalDiario();
+            diarioLocalEmEdicao=registro.id;
+            document.getElementById('diario-turma').value=registro.turma;
+            document.getElementById('diario-data').value=registro.data;
+            document.getElementById('diario-tema').value=registro.tema||'';
+            document.getElementById('diario-conteudo').value=registro.conteudo||'';
+        }
         function openModalDiario() {
+            diarioLocalEmEdicao=null;
             document.getElementById('form-diario').reset();
             document.getElementById('diario-data').value = new Date().toISOString().split('T')[0];
             document.getElementById('modal-diario').classList.remove('hidden');
@@ -3817,7 +3874,15 @@ html { -webkit-text-size-adjust:100%; }
                 conteudo: document.getElementById('diario-conteudo').value
             };
 
-            diarios.push(novo);
+            const existente=diarios.find(d=>d.turma===novo.turma && d.data===novo.data && String(d.id)!==String(diarioLocalEmEdicao));
+            if(existente){
+                if(!confirm('Já existe um diário desta turma nesta data. Deseja atualizar esse registro em vez de criar outro?'))return;
+                Object.assign(existente,{tema:novo.tema,conteudo:novo.conteudo});
+                if(diarioLocalEmEdicao!==null)diarios=diarios.filter(d=>String(d.id)!==String(diarioLocalEmEdicao)||d===existente);
+            }else if(diarioLocalEmEdicao!==null){
+                const atual=diarios.find(d=>String(d.id)===String(diarioLocalEmEdicao));
+                if(atual)Object.assign(atual,{turma:novo.turma,data:novo.data,tema:novo.tema,conteudo:novo.conteudo});
+            }else diarios.push(novo);
             salvarStorage();
             renderDiario();
             closeModalDiario();
