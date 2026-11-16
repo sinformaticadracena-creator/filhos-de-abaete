@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.62.7 Correção da turma principal — Mestre</title>
+    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.62.8 Correção de aulas duplicadas — Mestre</title>
     <!-- Supabase JS: autenticação e banco de dados online -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Tailwind CSS -->
@@ -1910,6 +1910,16 @@ html { -webkit-text-size-adjust:100%; }
                 if(!confirm('Confirmar gravação desta aula no Supabase?'))return;
                 salvar.disabled=true;saida.textContent='Salvando aula...';
                 try{
+                  // v25.62.8: evita novos registros duplicados sem apagar aulas históricas.
+                  const {data:jaExistentes,error:erroBusca}=await supabaseClient.from('abaete_aulas_professores')
+                    .select('id').eq('turma_id',String(id)).eq('professor_id',usuarioOnline.id)
+                    .eq('data_aula',dataAula.value).order('id',{ascending:true}).limit(1);
+                  if(erroBusca)throw erroBusca;
+                  if(jaExistentes?.length){
+                    saida.textContent='Já existe uma aula registrada para esta turma e data. Não foi criado outro registro. Você já pode concluir a chamada.';
+                    await abaeteListarAulasProfessor(id,historico,consultar);
+                    return;
+                  }
                   const {error}=await supabaseClient.from('abaete_aulas_professores').insert({
                     professor_id:usuarioOnline.id,turma_id:String(id),data_aula:dataAula.value,
                     presenca_professor:pres.value.toLowerCase(),conteudo:conteudo.value.trim()
@@ -1981,7 +1991,8 @@ html { -webkit-text-size-adjust:100%; }
           botao.disabled=true;area.textContent='Carregando alunos e presenças...';
           try{
             const {data:aula,error:erroAula}=await supabaseClient.from('abaete_aulas_professores')
-              .select('id,data_aula').eq('turma_id',String(turmaId)).eq('professor_id',usuarioOnline.id).eq('data_aula',dataAula).maybeSingle();
+              .select('id,data_aula').eq('turma_id',String(turmaId)).eq('professor_id',usuarioOnline.id).eq('data_aula',dataAula)
+              .order('id',{ascending:true}).limit(1).maybeSingle();
             if(erroAula)throw erroAula;
             const {data:alunos,error:erroAlunos}=await supabaseClient.rpc('abaete_alunos_turma_multiplas',{p_turma_id:String(turmaId)});
             if(erroAlunos)throw erroAlunos;
@@ -2048,7 +2059,8 @@ html { -webkit-text-size-adjust:100%; }
               let aulaParaSalvar=aula;
               try{
                 const {data:aulaAtual,error:erroAtual}=await supabaseClient.from('abaete_aulas_professores')
-                  .select('id').eq('turma_id',String(turmaId)).eq('professor_id',usuarioOnline.id).eq('data_aula',dataAula).maybeSingle();
+                  .select('id').eq('turma_id',String(turmaId)).eq('professor_id',usuarioOnline.id).eq('data_aula',dataAula)
+                  .order('id',{ascending:true}).limit(1).maybeSingle();
                 if(erroAtual)throw erroAtual;
                 aulaParaSalvar=aulaAtual;
               }catch(e){msg.textContent='Não foi possível verificar a aula: '+(e.message||String(e));return;}
