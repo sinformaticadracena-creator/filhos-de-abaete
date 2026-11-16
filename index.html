@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.62.8 Correção de aulas duplicadas — Mestre</title>
+    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.62.9 Aviso de aula já registrada — Mestre</title>
     <!-- Supabase JS: autenticação e banco de dados online -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Tailwind CSS -->
@@ -1916,7 +1916,7 @@ html { -webkit-text-size-adjust:100%; }
                     .eq('data_aula',dataAula.value).order('id',{ascending:true}).limit(1);
                   if(erroBusca)throw erroBusca;
                   if(jaExistentes?.length){
-                    saida.textContent='Já existe uma aula registrada para esta turma e data. Não foi criado outro registro. Você já pode concluir a chamada.';
+                    saida.textContent='Aula já registrada! Já existe uma aula deste professor para esta turma e data. Nenhuma aula duplicada foi criada. Consulte o histórico abaixo ou prossiga para a chamada.';
                     await abaeteListarAulasProfessor(id,historico,consultar);
                     return;
                   }
@@ -1927,7 +1927,16 @@ html { -webkit-text-size-adjust:100%; }
                   if(error)throw error;
                   saida.textContent='Aula salva com sucesso no Supabase. Agora você pode concluir a chamada.';
                   await abaeteListarAulasProfessor(id,historico,consultar);
-                }catch(e){saida.textContent='Não foi possível salvar: '+(e.message||String(e));}
+                }catch(e){
+                  // Uma restrição UNIQUE no banco também pode impedir duplicação simultânea.
+                  // Nesse caso, orientar a professora sem apresentar o conflito como falha de cadastro.
+                  if(String(e?.code||'')==='23505'){
+                    saida.textContent='Aula já registrada! O Supabase identificou um registro existente para esta combinação. Nenhuma aula duplicada foi criada. Consulte o histórico antes de tentar novamente.';
+                    await abaeteListarAulasProfessor(id,historico,consultar).catch(()=>{});
+                  }else{
+                    saida.textContent='Não foi possível salvar: '+(e.message||String(e));
+                  }
+                }
                 finally{salvar.disabled=false;}
               });
               consultar.addEventListener('click',()=>abaeteListarAulasProfessor(id,historico,consultar));
