@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.62.0 Preparação de múltiplas turmas — Mestre</title>
+    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.62.6 Correção da turma principal — Mestre</title>
     <!-- Supabase JS: autenticação e banco de dados online -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Tailwind CSS -->
@@ -2800,7 +2800,9 @@ html { -webkit-text-size-adjust:100%; }
                     el.appendChild(opt);
                 });
 
-                if (valAtual) el.value = valAtual;
+                if (valAtual && [...el.options].some(o => o.value === valAtual)) el.value = valAtual;
+                // O campo de edição deve exigir uma turma válida, sem selecionar outra por engano.
+                if (id === 'atleta-turma' && !valAtual) el.value = '';
             });
         }
 
@@ -2955,7 +2957,10 @@ html { -webkit-text-size-adjust:100%; }
             fotoTempBase64 = "";
             document.getElementById('abaete-vinculo-online-box').classList.add('hidden');
             document.getElementById('form-atleta').reset();
-            document.getElementById('atleta-turma').disabled = false;
+            preencherSelectsTurma();
+            const seletorTurmaAtleta=document.getElementById('atleta-turma');
+            seletorTurmaAtleta.disabled = false;
+            seletorTurmaAtleta.value = '';
             document.getElementById('atleta-id').value = "";
             document.getElementById('prev-foto-atleta').classList.add('hidden');
             document.getElementById('icon-foto-atleta').classList.remove('hidden');
@@ -2982,8 +2987,12 @@ html { -webkit-text-size-adjust:100%; }
                     document.getElementById('atleta-categoria').value = a.categoria;
                     atualizarOpcoesGraduacao();
                     document.getElementById('atleta-graduacao').value = a.graduacao || 'Sem graduação';
-                    document.getElementById('atleta-turma').value = a.turma;
-                    document.getElementById('atleta-turma').disabled = true;
+                    // A primeira turma pode ser definida pelo mestre; depois permanece fixa.
+                    if (a.turma && ![...seletorTurmaAtleta.options].some(o=>o.value===a.turma)) {
+                        seletorTurmaAtleta.add(new Option(a.turma+' (não encontrada no cadastro de turmas)',a.turma));
+                    }
+                    seletorTurmaAtleta.value = a.turma || '';
+                    seletorTurmaAtleta.disabled = !!a.turma;
                     document.getElementById('atleta-endereco').value = a.endereco || '';
                     document.getElementById('atleta-bairro').value = a.bairro || '';
                     document.getElementById('atleta-telefone').value = a.telefone || '';
@@ -3129,7 +3138,7 @@ html { -webkit-text-size-adjust:100%; }
                 cpf: document.getElementById('atleta-cpf').value,
                 categoria: document.getElementById('atleta-categoria').value,
                 graduacao: document.getElementById('atleta-graduacao').value,
-                turma: atletaAnterior ? atletaAnterior.turma : document.getElementById('atleta-turma').value,
+                turma: atletaAnterior?.turma || document.getElementById('atleta-turma').value,
                 nascimento: document.getElementById('atleta-nascimento').value,
                 endereco: document.getElementById('atleta-endereco').value,
                 bairro: document.getElementById('atleta-bairro').value.trim(),
@@ -3153,6 +3162,24 @@ html { -webkit-text-size-adjust:100%; }
             // Fotos antigas em base64 são preservadas até a migração voluntária.
             if (fotoTempBase64 && fotoTempBase64.startsWith('data:image/') && (!atletaAnterior || fotoTempBase64!==atletaAnterior.foto)) {
                 atletaData.foto=await enviarFotoStorage(fotoTempBase64,caminhoNovoFoto('atleta',atletaData.id));
+            }
+            // Vincula a primeira turma ao cadastro online, usada pela RLS e pelas chamadas do professor.
+            // Nunca substitui uma turma principal já existente.
+            if (atletaAnterior?.cadastroOnlineId && !atletaAnterior.turma && atletaData.turma) {
+                const turmaSelecionada=turmas.find(t=>t.nome===atletaData.turma);
+                if(!turmaSelecionada)throw new Error('Turma não encontrada. Atualize a página e tente novamente.');
+                const {data:cadastro,error:erroCadastro}=await supabaseClient.from('cadastros_alunos')
+                    .select('id,turma_id').eq('id',atletaAnterior.cadastroOnlineId).single();
+                if(erroCadastro)throw erroCadastro;
+                if(cadastro.turma_id && String(cadastro.turma_id)!==String(turmaSelecionada.id))
+                    throw new Error('O cadastro online já possui outra turma principal. Atualize a página antes de editar.');
+                if(!cadastro.turma_id){
+                    const {data:gravado,error:erroTurma}=await supabaseClient.from('cadastros_alunos')
+                        .update({turma_id:String(turmaSelecionada.id),atualizado_em:new Date().toISOString()})
+                        .eq('id',atletaAnterior.cadastroOnlineId).is('turma_id',null).select('id');
+                    if(erroTurma)throw erroTurma;
+                    if(!gravado?.length)throw new Error('Não foi possível vincular a turma no cadastro online.');
+                }
             }
             const anteriores = atletas.slice();
             if (id) {
