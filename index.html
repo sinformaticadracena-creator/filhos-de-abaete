@@ -1975,6 +1975,10 @@ html { -webkit-text-size-adjust:100%; }
               consultar.addEventListener('click',()=>abaeteListarAulasProfessor(id,historico,consultar));
               const acoesDiario=document.createElement('div');acoesDiario.className='abaete-diario-acoes';acoesDiario.append(previsualizar,salvar,consultar);
               formulario.append(cab,lblData,lblPres,lblConteudo,acoesDiario,saida,aviso,historico);
+              // v25.62.11: mostra o histórico e os botões de edição já na abertura,
+              // sem exigir que a professora salve uma aula ou clique em Consultar.
+              // Cada turma usa seu próprio painel e a consulta respeita a RLS existente.
+              abaeteListarAulasProfessor(id,historico,consultar);
               const chamada=document.createElement('section');
               chamada.className='mt-5 space-y-6 abaete-chamada-professor';
               const cabChamada=document.createElement('div');cabChamada.className='bg-white border rounded-2xl shadow-sm p-5 flex flex-wrap items-end justify-between gap-3';
