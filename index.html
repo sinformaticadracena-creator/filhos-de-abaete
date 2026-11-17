@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.62.10 Edição de diário — Mestre</title>
+    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.62.11 Edição direta de diário — Mestre</title>
     <!-- Supabase JS: autenticação e banco de dados online -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Tailwind CSS -->
@@ -3878,15 +3878,30 @@ html { -webkit-text-size-adjust:100%; }
                 conteudo: document.getElementById('diario-conteudo').value
             };
 
-            const existente=diarios.find(d=>d.turma===novo.turma && d.data===novo.data && String(d.id)!==String(diarioLocalEmEdicao));
-            if(existente){
-                if(!confirm('Já existe um diário desta turma nesta data. Deseja atualizar esse registro em vez de criar outro?'))return;
-                Object.assign(existente,{tema:novo.tema,conteudo:novo.conteudo});
-                if(diarioLocalEmEdicao!==null)diarios=diarios.filter(d=>String(d.id)!==String(diarioLocalEmEdicao)||d===existente);
-            }else if(diarioLocalEmEdicao!==null){
-                const atual=diarios.find(d=>String(d.id)===String(diarioLocalEmEdicao));
-                if(atual)Object.assign(atual,{turma:novo.turma,data:novo.data,tema:novo.tema,conteudo:novo.conteudo});
-            }else diarios.push(novo);
+            // Ao editar, atualiza exatamente o registro selecionado, sem recriar
+            // nem pedir confirmação de duplicidade para o próprio diário.
+            const atual = diarioLocalEmEdicao === null ? null :
+                diarios.find(d => String(d.id) === String(diarioLocalEmEdicao));
+            if (diarioLocalEmEdicao !== null && !atual) {
+                alert('O diário selecionado não foi encontrado. Atualize a página e tente novamente.');
+                return;
+            }
+            const conflito = diarios.find(d =>
+                d.turma === novo.turma && d.data === novo.data &&
+                (!atual || String(d.id) !== String(atual.id))
+            );
+            if (conflito) {
+                alert('Já existe outro diário para esta turma nesta data. Edite o registro existente ou escolha outra data. Nenhuma alteração foi feita.');
+                return;
+            }
+            if (atual) {
+                Object.assign(atual, {
+                    turma: novo.turma, data: novo.data,
+                    tema: novo.tema, conteudo: novo.conteudo
+                });
+            } else {
+                diarios.push(novo);
+            }
             salvarStorage();
             renderDiario();
             closeModalDiario();
