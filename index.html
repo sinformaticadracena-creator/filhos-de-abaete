@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.62.13 Carteirinha familiar e turmas</title>
+    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.62.14 Ajuste PDF familiar</title>
     <!-- Supabase JS: autenticação e banco de dados online -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Tailwind CSS -->
@@ -457,6 +457,19 @@ html { -webkit-text-size-adjust:100%; }
  #abaete-professor-turmas .abaete-professor-aluno-graduacao{margin:0;}
  #abaete-professor-turmas .abaete-professor-aluno-linha>form{grid-column:1/-1;}
 }
+</style>
+<style id="abaete-familia-pdf-256214">
+#familia-cartoes .v23-infos{font-size:9px;line-height:12px;overflow:visible}
+#familia-cartoes .v23-infos>small{display:block;font-size:8px;line-height:10px}
+#familia-cartoes .v23-infos>strong{font-size:12px;line-height:16px;max-height:none;overflow:visible;margin:2px 0 4px;padding-bottom:2px}
+#familia-cartoes .v23-dados{margin-top:8px}
+#familia-cartoes .v23-verso-titulo{line-height:16px;padding-bottom:5px}
+#familia-cartoes .v23-verso-titulo small{line-height:10px}
+#familia-cartoes .v23-verso-meio{margin-top:7px;line-height:12px}
+#familia-cartoes .v23-verso-meio b{line-height:10px}
+#familia-cartoes .v23-verso-meio span{line-height:13px;margin-bottom:3px}
+#familia-cartoes .v23-verso-rodape{border-top:0;padding-top:0;bottom:7px;line-height:10px}
+#familia-cartoes #familia-v23-qr img,#familia-cartoes #familia-v23-qr canvas{width:92px!important;height:92px!important}
 </style>
 </head>
 <body class="bg-gray-100 font-sans text-gray-800 min-h-screen flex flex-col">
@@ -4770,7 +4783,7 @@ async function abaeteCarteiraFamilia(id,btn){
   const pdf=document.createElement('button');pdf.textContent='Baixar PDF para imprimir';pdf.className='px-4 py-3 rounded-lg bg-red-700 text-white font-bold m-2';pdf.disabled=true;painel.append(pdf);
   if(a.foto){foto.src=await urlFoto(a.foto);await foto.decode();foto.style.display='block';sem.style.display='none';}
   pdf.disabled=false;
-  pdf.onclick=async()=>{pdf.disabled=true;try{if(usuarioOnline?.id!==uid)throw Error('Sessão encerrada.');const atual=await consultar();if(JSON.stringify(atual)!==JSON.stringify(a))throw Error('Carteirinha alterada. Feche e abra novamente.');const doc=new window.jspdf.jsPDF({unit:'mm',format:'a4'});let y=15;for(const card of cards.querySelectorAll('.v23-card')){const canvas=await html2canvas(card,{scale:3,useCORS:true,backgroundColor:'#ffffff'});doc.addImage(canvas.toDataURL('image/png'),'PNG',15,y,85.6,54);y+=66;}if(usuarioOnline?.id!==uid)throw Error('Sessão encerrada.');doc.save('Carteirinha_Filhos_de_Abaete.pdf');}catch(e){alert(e.message);}finally{pdf.disabled=false;}};
+  pdf.onclick=async()=>{pdf.disabled=true;try{if(usuarioOnline?.id!==uid)throw Error('Sessão encerrada.');const atual=await consultar();if(JSON.stringify(atual)!==JSON.stringify(a))throw Error('Carteirinha alterada. Feche e abra novamente.');if(document.fonts?.ready)await document.fonts.ready;const doc=new window.jspdf.jsPDF({unit:'mm',format:'a4'});let y=15;for(const card of cards.querySelectorAll('.v23-card')){const canvas=await html2canvas(card,{scale:3,useCORS:true,backgroundColor:'#ffffff'});doc.addImage(canvas.toDataURL('image/png'),'PNG',15,y,85.6,54);y+=66;}if(usuarioOnline?.id!==uid)throw Error('Sessão encerrada.');doc.save('Carteirinha_Filhos_de_Abaete.pdf');}catch(e){alert(e.message);}finally{pdf.disabled=false;}};
  }catch(e){modal?.remove();alert(e.message);}finally{btn.disabled=false;}
 }
 </script>
