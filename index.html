@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.62.12 Correção de bairro</title>
+    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.62.13 Carteirinha familiar e turmas</title>
     <!-- Supabase JS: autenticação e banco de dados online -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Tailwind CSS -->
@@ -2435,7 +2435,7 @@ html { -webkit-text-size-adjust:100%; }
           const st=document.getElementById('portal-aluno-status'),av=document.getElementById('portal-aluno-aviso'),el=document.getElementById('portal-aluno-dados');
           st.textContent='Carregando atletas...';av.textContent='';el.innerHTML='';
           cadastroFamiliaEmEdicao=null;document.getElementById('form-editar-contato-familiar').classList.add('hidden');
-          let {data,error}=await supabaseClient.from('cadastros_alunos').select('id,nome_completo,cpf,foto_data,data_nascimento,telefone,endereco,nome_responsavel,telefone_responsavel,bairro,status,criado_em').eq('usuario_id',usuarioOnline.id).order('criado_em',{ascending:false});
+          let {data,error}=await supabaseClient.from('cadastros_alunos').select('id,nome_completo,cpf,foto_data,data_nascimento,telefone,endereco,nome_responsavel,telefone_responsavel,bairro,status,arquivado,criado_em').eq('usuario_id',usuarioOnline.id).order('criado_em',{ascending:false});
           if(error){st.textContent='Não foi possível carregar';av.textContent=error.message;return;}
           if(!data.length){
             let rascunho=null;try{rascunho=JSON.parse(localStorage.getItem('abaete_cadastro_pendente')||'null');}catch(_){}
@@ -2454,7 +2454,8 @@ html { -webkit-text-size-adjust:100%; }
             <div class="min-w-0 flex-1"><h3 class="font-bold">${escaparHTML(x.nome_completo||'')}</h3>
             <p class="font-semibold text-sm mt-1">Situação: ${escaparHTML(labels[x.status]||x.status||'')}</p>
             <p class="text-xs text-gray-600 mt-1">Nascimento: ${escaparHTML(x.data_nascimento||'—')}</p>
-            <p class="text-xs text-gray-600">Bairro: ${escaparHTML(x.bairro||'—')}</p><button type="button" data-editar-familiar="${escaparHTML(x.id)}" class="mt-3 px-3 py-2 rounded-lg bg-blue-700 text-white text-xs font-bold">Atualizar contato e foto</button></div></article>`).join('');
+            <p class="text-xs text-gray-600">Bairro: ${escaparHTML(x.bairro||'—')}</p><button type="button" data-editar-familiar="${escaparHTML(x.id)}" class="mt-3 px-3 py-2 rounded-lg bg-blue-700 text-white text-xs font-bold">Atualizar contato e foto</button>${x.status==='aprovado'&&!x.arquivado?` <button type="button" data-carteira-familiar="${escaparHTML(x.id)}" class="mt-3 px-3 py-2 rounded-lg bg-red-700 text-white text-xs font-bold">Minha carteirinha</button>`:''}</div></article>`).join('');
+          el.querySelectorAll('[data-carteira-familiar]').forEach(btn=>btn.addEventListener('click',()=>abaeteCarteiraFamilia(btn.dataset.carteiraFamiliar,btn)));
           el.querySelectorAll('[data-editar-familiar]').forEach(btn=>btn.addEventListener('click',()=>abrirEdicaoContatoFamiliar(btn.dataset.editarFamiliar)));
         }
         let cadastroFamiliaEmEdicao=null;
@@ -2608,16 +2609,18 @@ html { -webkit-text-size-adjust:100%; }
           if(papelOnline!=='administrador'||!sincronizacaoPronta){alert('Aguarde a sincronização e entre como administrador.');return;}
           try{
             const {data:cadastro,error:erroConsulta}=await supabaseClient.from('cadastros_alunos')
-              .select('id,nome_completo,cpf,foto_data,endereco,cpf_responsavel,parentesco_responsavel,data_nascimento,telefone,nome_responsavel,telefone_responsavel,bairro,status').eq('id',id).single();
+              .select('id,nome_completo,cpf,foto_data,endereco,cpf_responsavel,parentesco_responsavel,data_nascimento,telefone,nome_responsavel,telefone_responsavel,bairro,status,turma_id').eq('id',id).single();
             if(erroConsulta)throw erroConsulta;
             if(status==='aprovado'){
               if(!atletas.some(a=>String(a.cadastroOnlineId||'')===String(id))){
+                const cpfCadastro=String(cadastro.cpf||'').replace(/\D/g,'');
+                if(cpfCadastro && atletas.some(a=>String(a.cpf||'').replace(/\D/g,'')===cpfCadastro)) throw Error('CPF já existente. Confira o vínculo do atleta antes de aprovar.');
                 const nome=(cadastro.nome_completo||'').trim();
                 if(!nome)throw Error('O cadastro está sem nome.');
                 const nascimento=cadastro.data_nascimento||'';
                 let categoria='Adulto';
                 if(nascimento){const hoje=new Date(),nasc=new Date(nascimento+'T12:00:00');let idade=hoje.getFullYear()-nasc.getFullYear();if(hoje.getMonth()<nasc.getMonth()||(hoje.getMonth()===nasc.getMonth()&&hoje.getDate()<nasc.getDate()))idade--;categoria=idade<16?'Infantil':'Adulto';}
-                const atleta={id:Date.now()+Math.floor(Math.random()*100000),cadastroOnlineId:id,dataInscricao:null,nome,apelido:'',cpf:cadastro.cpf||'',categoria,graduacao:'Sem graduação',turma:'',nascimento,endereco:cadastro.endereco||cadastro.bairro||'',bairro:cadastro.bairro||'',telefone:cadastro.telefone||'',obs:'Cadastro online aprovado. Turma e graduação a definir.',respNome:cadastro.nome_responsavel||'',respCpf:cadastro.cpf_responsavel||'',respWhatsapp:cadastro.telefone_responsavel||'',respParentesco:cadastro.parentesco_responsavel||'',foto:cadastro.foto_data||''};
+                const atleta={id:Date.now()+Math.floor(Math.random()*100000),cadastroOnlineId:id,dataInscricao:null,nome,apelido:'',cpf:cadastro.cpf||'',categoria,graduacao:'Sem graduação',turma:turmas.find(t=>String(t.id)===String(cadastro.turma_id))?.nome||'',nascimento,endereco:cadastro.endereco||cadastro.bairro||'',bairro:cadastro.bairro||'',telefone:cadastro.telefone||'',obs:'Cadastro online aprovado. Turma e graduação a definir.',respNome:cadastro.nome_responsavel||'',respCpf:cadastro.cpf_responsavel||'',respWhatsapp:cadastro.telefone_responsavel||'',respParentesco:cadastro.parentesco_responsavel||'',foto:cadastro.foto_data||''};
                 // Busca a data original do cadastro online, sem impedir a aprovação caso o campo não exista.
                 try {
                     const {data:registroData,error:erroData}=await supabaseClient.from('cadastros_alunos').select('criado_em').eq('id',id).maybeSingle();
@@ -3195,6 +3198,8 @@ html { -webkit-text-size-adjust:100%; }
             }
             const id = document.getElementById('atleta-id').value;
             const atletaAnterior = id ? atletas.find(a=>String(a.id)===String(id)) : null;
+            const cpfNovo=document.getElementById('atleta-cpf').value.replace(/\D/g,'');
+            if(cpfNovo && atletas.some(a=>String(a.id)!==String(id)&&String(a.cpf||'').replace(/\D/g,'')===cpfNovo)){aviso.textContent='CPF já cadastrado em outro atleta. Confira os registros existentes.';aviso.classList.remove('hidden');return;}
             if (!fotoTempBase64 && !(atletaAnterior && atletaAnterior.foto)) {
                 aviso.textContent='Selecione a foto do atleta antes de salvar.';aviso.classList.remove('hidden');
                 document.getElementById('atleta-foto-file').focus();
@@ -4742,6 +4747,32 @@ function v23Imprimir(){
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',iniciarMenuMestre);else iniciarMenuMestre();
 })();
+</script>
+
+<script>
+async function abaeteCarteiraFamilia(id,btn){
+ if(!usuarioOnline || papelOnline!=='aluno')return;
+ const uid=usuarioOnline.id; btn.disabled=true; let modal;
+ const consultar=async()=>{const {data,error}=await supabaseClient.rpc('consultar_dados_carteirinha_aluno',{p_cadastro_id:id});if(error)throw Error('Consulta indisponível: '+error.message);if(!Array.isArray(data)||data.length!==1)throw Error('Carteirinha não emitida, inativa ou com vínculo inconsistente. Consulte o mestre.');return data[0];};
+ try{
+  const a=await consultar();if(usuarioOnline?.id!==uid)return;
+  modal=document.createElement('div');modal.style.cssText='position:fixed;inset:0;z-index:99999;background:#0009;overflow:auto;padding:12px';
+  const painel=document.createElement('div');painel.style.cssText='background:white;margin:auto;max-width:740px;padding:12px;border-radius:16px';modal.append(painel);
+  const h=document.createElement('h2');h.textContent='Minha carteirinha';h.className='text-xl font-bold mb-3';painel.append(h);
+  const cards=document.getElementById('v23-cartoes').cloneNode(true);cards.id='familia-cartoes';cards.style.cssText='display:flex;flex-wrap:wrap;gap:12px;overflow:auto';
+  const get=k=>cards.querySelector('#'+k);const set=(k,v)=>get(k).textContent=v23Texto(v);
+  set('v23-nome',a.nome);set('v23-verso-nome',a.nome);set('v23-graduacao',a.graduacao||'Sem graduação');set('v23-turma',a.turma);set('v23-matricula',v23Matricula({id:a.atleta_id}));set('v23-verso-matricula',v23Matricula({id:a.atleta_id}));set('v23-nascimento',String(a.nascimento||'').split('-').reverse().join('/'));
+  get('v23-logo').src=document.querySelector('#login-online img[src^="data:image"]').src;
+  const foto=get('v23-foto'),sem=get('v23-sem-foto');foto.removeAttribute('src');foto.style.display='none';sem.style.display='block';
+  const qr=get('v23-qr');qr.replaceChildren();qr.style.cssText='width:92px;height:92px;flex-shrink:0';new QRCode(qr,{text:V24_URL+'?token='+encodeURIComponent(a.token),width:92,height:92,correctLevel:QRCode.CorrectLevel.M});
+  cards.querySelectorAll('[id]').forEach(el=>el.id='familia-'+el.id);painel.append(cards);document.body.append(modal);
+  const fechar=document.createElement('button');fechar.textContent='Fechar';fechar.className='px-4 py-3 rounded-lg bg-gray-200 font-bold m-2';fechar.onclick=()=>modal.remove();painel.append(fechar);
+  const pdf=document.createElement('button');pdf.textContent='Baixar PDF para imprimir';pdf.className='px-4 py-3 rounded-lg bg-red-700 text-white font-bold m-2';pdf.disabled=true;painel.append(pdf);
+  if(a.foto){foto.src=await urlFoto(a.foto);await foto.decode();foto.style.display='block';sem.style.display='none';}
+  pdf.disabled=false;
+  pdf.onclick=async()=>{pdf.disabled=true;try{if(usuarioOnline?.id!==uid)throw Error('Sessão encerrada.');const atual=await consultar();if(JSON.stringify(atual)!==JSON.stringify(a))throw Error('Carteirinha alterada. Feche e abra novamente.');const doc=new window.jspdf.jsPDF({unit:'mm',format:'a4'});let y=15;for(const card of cards.querySelectorAll('.v23-card')){const canvas=await html2canvas(card,{scale:3,useCORS:true,backgroundColor:'#ffffff'});doc.addImage(canvas.toDataURL('image/png'),'PNG',15,y,85.6,54);y+=66;}if(usuarioOnline?.id!==uid)throw Error('Sessão encerrada.');doc.save('Carteirinha_Filhos_de_Abaete.pdf');}catch(e){alert(e.message);}finally{pdf.disabled=false;}};
+ }catch(e){modal?.remove();alert(e.message);}finally{btn.disabled=false;}
+}
 </script>
 </body>
 </html>
