@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.62.11 Edição direta de diário — Mestre</title>
+    <title>Associação de Capoeira Filhos de Abaeté - Dracena/SP — v25.62.12 Correção de bairro</title>
     <!-- Supabase JS: autenticação e banco de dados online -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Tailwind CSS -->
@@ -2617,7 +2617,7 @@ html { -webkit-text-size-adjust:100%; }
                 const nascimento=cadastro.data_nascimento||'';
                 let categoria='Adulto';
                 if(nascimento){const hoje=new Date(),nasc=new Date(nascimento+'T12:00:00');let idade=hoje.getFullYear()-nasc.getFullYear();if(hoje.getMonth()<nasc.getMonth()||(hoje.getMonth()===nasc.getMonth()&&hoje.getDate()<nasc.getDate()))idade--;categoria=idade<16?'Infantil':'Adulto';}
-                const atleta={id:Date.now()+Math.floor(Math.random()*100000),cadastroOnlineId:id,dataInscricao:null,nome,apelido:'',cpf:cadastro.cpf||'',categoria,graduacao:'Sem graduação',turma:'',nascimento,endereco:cadastro.endereco||cadastro.bairro||'',telefone:cadastro.telefone||'',obs:'Cadastro online aprovado. Turma e graduação a definir.',respNome:cadastro.nome_responsavel||'',respCpf:cadastro.cpf_responsavel||'',respWhatsapp:cadastro.telefone_responsavel||'',respParentesco:cadastro.parentesco_responsavel||'',foto:cadastro.foto_data||''};
+                const atleta={id:Date.now()+Math.floor(Math.random()*100000),cadastroOnlineId:id,dataInscricao:null,nome,apelido:'',cpf:cadastro.cpf||'',categoria,graduacao:'Sem graduação',turma:'',nascimento,endereco:cadastro.endereco||cadastro.bairro||'',bairro:cadastro.bairro||'',telefone:cadastro.telefone||'',obs:'Cadastro online aprovado. Turma e graduação a definir.',respNome:cadastro.nome_responsavel||'',respCpf:cadastro.cpf_responsavel||'',respWhatsapp:cadastro.telefone_responsavel||'',respParentesco:cadastro.parentesco_responsavel||'',foto:cadastro.foto_data||''};
                 // Busca a data original do cadastro online, sem impedir a aprovação caso o campo não exista.
                 try {
                     const {data:registroData,error:erroData}=await supabaseClient.from('cadastros_alunos').select('criado_em').eq('id',id).maybeSingle();
@@ -2918,7 +2918,7 @@ html { -webkit-text-size-adjust:100%; }
             }
 
             filtrados.forEach(a => {
-                if (!a.dataInscricao && a.cadastroOnlineId) void recuperarDataInscricaoAtleta(a);
+                if ((!a.dataInscricao || !String(a.bairro||'').trim()) && a.cadastroOnlineId) void recuperarDataInscricaoAtleta(a);
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-gray-50 transition border-b border-gray-100";
                 
@@ -2975,21 +2975,23 @@ html { -webkit-text-size-adjust:100%; }
         const datasInscricaoEmConsulta = new Set();
         const datasInscricaoSemRegistro = new Set();
         async function recuperarDataInscricaoAtleta(a) {
-            if (!a || a.dataInscricao || !a.cadastroOnlineId || !supabaseClient || !usuarioOnline || papelOnline !== 'administrador') return;
+            if (!a || (a.dataInscricao && String(a.bairro||'').trim()) || !a.cadastroOnlineId || !supabaseClient || !usuarioOnline || papelOnline !== 'administrador') return;
             const chave = String(a.cadastroOnlineId);
             if (datasInscricaoEmConsulta.has(chave) || datasInscricaoSemRegistro.has(chave)) return;
             datasInscricaoEmConsulta.add(chave);
             try {
                 const {data, error} = await supabaseClient.from('cadastros_alunos')
-                    .select('criado_em').eq('id', a.cadastroOnlineId).maybeSingle();
-                if (error) { console.warn('Não foi possível consultar a data de inscrição:', error.message); return; }
-                if (!data?.criado_em) datasInscricaoSemRegistro.add(chave);
-                if (data?.criado_em) {
-                    a.dataInscricao = data.criado_em;
-                    // A informação será incluída no próximo salvamento normal do atleta.
-                    renderAtletas();
+                    .select('criado_em,bairro').eq('id', a.cadastroOnlineId).maybeSingle();
+                if (error) { console.warn('Consulta de inscrição e bairro:', error.message); return; }
+                if (!atletas.includes(a)) return;
+                let alterou = false;
+                if (!a.dataInscricao && data?.criado_em) { a.dataInscricao = data.criado_em; alterou = true; }
+                if (!String(a.bairro||'').trim() && String(data?.bairro||'').trim()) {
+                    a.bairro = data.bairro.trim(); alterou = true;
                 }
-            } catch (e) { console.warn('Consulta da data de inscrição:', e); }
+                if (!a.dataInscricao || !String(a.bairro||'').trim()) datasInscricaoSemRegistro.add(chave);
+                if (alterou) { salvarStorage(); renderAtletas(); }
+            } catch (e) { console.warn('Consulta de inscrição e bairro:', e); }
             finally { datasInscricaoEmConsulta.delete(chave); }
         }
 
